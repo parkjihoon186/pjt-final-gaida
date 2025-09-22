@@ -206,5 +206,14 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-node_modules/
-test.html
+
+.gemini/
+
+
+test.py
+test2.py
+
+venv
+
+
+.history
