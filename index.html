@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VS ME </title>
+    <!-- 외부 라이브러리 및 폰트 로드 -->
+    <!-- Tailwind CSS: 유틸리티 기반 CSS 프레임워크 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js: 데이터 시각화를 위한 차트 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase: 오픈소스 Firebase 대체재 (백엔드 서비스) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Google Fonts: 'Black Han Sans', 'Noto Sans KR' 폰트 로드 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- 내부 CSS 스타일 정의 -->
+    <style>
+        /* 기본 바디 스타일: 폰트, 배경색, 글자색 설정 */
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #121212; /* 다크 테마 배경색 */
+            color: #ffffff; /* 기본 글자색 */
+        }
+        /* 카드 UI 컴포넌트 스타일 */
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border: 1px solid #333;
+        }
+        /* Black Han Sans 폰트 전용 클래스 */
+        .black-han-sans {
+            font-family: 'Black Han Sans', sans-serif;
+        }
+        /* 차트 컨테이너 스타일 */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        /* 반응형: 화면 너비가 768px 이상일 때 차트 높이 조정 */
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        /* 주요 버튼 스타일 */
+        .btn-primary {
+            background-color: #f5c000; /* 앰버 색상 */
+            color: #121212;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #d8a900;
+        }
+        /* 보조 버튼 스타일 */
+        .btn-secondary {
+            background-color: #a0a0a0;
+            color: #121212;
+            transition: background-color 0.3s;
+        }
+        .btn-secondary:hover {
+            background-color: #7a7a7a;
+        }
+        /* 로딩 인디케이터를 위한 펄스 애니메이션 */
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        /* 운동 입력 폼 그리드 스타일 */
+        .input-group-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        /* 커스텀 메시지 박스(alert 대체) 스타일 */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #1e1e1e;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: none; /* 기본적으로 숨김 */
+            text-align: center;
+        }
+        .message-box button {
+            margin-top: 16px;
+        }
+        /* 개인 최고 기록 달성 시 트로피 애니메이션 */
+        .trophy-container.sparkle .trophy-emoji {
+            animation: sparkle-animation 1.5s ease-in-out;
+        }
+        @keyframes sparkle-animation {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.2); filter: brightness(1.75) drop-shadow(0 0 8px #f5c000); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .trophy-emoji { font-size: 3rem; }
+        .volume-color { color: #f5c000; } /* 볼륨 강조 색상 */
+        /* 사용자 ID 표시 스타일 */
+        .user-id-display {
+            font-size: 0.75rem; color: #555; background-color: #191919;
+            padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 1rem;
+        }
+        /* 세션 비교 카드 그리드 스타일 */
+        .comparison-grid {
+            display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; align-items: center;
+        }
+        .comparison-grid .exercise-name { grid-column: 1 / -1; }
+        .arrow-up { color: #28a745; } /* 상승 화살표 색상 */
+        .arrow-down { color: #dc3545; } /* 하락 화살표 색상 */
+        /* 폼 레이블 및 입력 필드 공통 스타일 */
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #a0a0a0;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .form-input, .form-select {
+             width: 100%;
+             padding: 0.75rem;
+             background-color: #2a2a2a;
+             border: 1px solid #444;
+             color: #ffffff;
+             border-radius: 0.5rem;
+             transition: all 0.2s;
+        }
+        .form-input:focus, .form-select:focus {
+            ring: 2;
+            ring-color: #f5c000;
+            border-color: transparent;
+            outline: none;
+        }
+        /* 챗봇 UI 스타일 */
+        #chat-messages {
+            height: 250px;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-message {
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #f5c000;
+            color: #121212;
+            align-self: flex-end; /* 사용자 메시지는 오른쪽 */
+        }
+        .ai-message {
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            align-self: flex-start; /* AI 메시지는 왼쪽 */
+        }
+        .chat-input-container {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <!-- 전체 페이지 컨테이너 -->
+    <div class="container mx-auto p-4 md:p-6 max-w-7xl">
+
+        <!-- 페이지 헤더 -->
+        <header class="text-center py-8">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-50">
+                VS ME  V4
+            </h1>
+            <p class="mt-2 text-gray-400 text-lg font-bold">승리는 데이터에서 시작된다.</p>
+            <div class="user-id-display">
+                <span id="user-id-text">로그인 중...</span>
+            </div>
+        </header>
+
+        <!-- 메인 콘텐츠 영역 (2단 그리드 레이아웃) -->
+        <main class="grid lg:grid-cols-3 gap-6">
+
+            <!-- 왼쪽 컬럼: 입력 및 로그 섹션 -->
+            <section class="lg:col-span-1 flex flex-col gap-6">
+                <!-- 사용자 정보 입력 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">사용자 정보</h2>
+                    <div id="user-profile-form" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="age" class="form-label">나이</label>
+                                <input type="number" id="age" class="form-input" placeholder="세">
+                            </div>
+                            <div>
+                                <label for="gender" class="form-label">성별</label>
+                                <select id="gender" class="form-select">
+                                    <option value="male">남성</option>
+                                    <option value="female">여성</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="height" class="form-label">키</label>
+                                <input type="number" id="height" class="form-input" placeholder="cm">
+                            </div>
+                            <div>
+                                <label for="weight" class="form-label">체중</label>
+                                <input type="number" id="weight" class="form-input" placeholder="kg">
+                            </div>
+                        </div>
+                        <div>
+                             <label for="activity-level" class="form-label">활동 수준</label>
+                             <select id="activity-level" class="form-select">
+                                 <option value="1.2">매우 낮음 (좌식 생활)</option>
+                                 <option value="1.375">낮음 (주 1-3회 운동)</option>
+                                 <option value="1.55" selected>보통 (주 3-5회 운동)</option>
+                                 <option value="1.725">높음 (주 6-7회 운동)</option>
+                                 
+                             </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 훈련 기록 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">훈련 기록</h2>
+                    <!-- 운동 입력 폼이 동적으로 추가될 컨테이너 -->
+                    <div id="exercise-form-container" class="space-y-4"></div>
+                    <button id="add-exercise-btn" class="w-full btn-secondary font-bold py-3 rounded-lg mt-4 text-sm">+ 전술 추가하기</button>
+                    <button id="record-session-btn" class="w-full btn-primary font-bold py-3 rounded-lg mt-2 text-lg">훈련기록해!</button>
+                </div>
+                
+                <!-- 영양 기록 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">영양 기록</h2>
+                     <div class="space-y-4">
+                        <!-- 주요 영양소 입력 -->
+                        <div class="grid grid-cols-3 gap-4">
+                             <div><label class="form-label">탄수화물(g)</label><input type="number" id="carbs-input" class="form-input"></div>
+                            <div><label class="form-label">단백질(g)</label><input type="number" id="protein-input" class="form-input"></div>
+                            <div><label class="form-label">지방(g)</label><input type="number" id="fat-input" class="form-input"></div>
+                        </div>
+                         <!-- 보충제 입력 -->
+                         <h3 class="text-lg font-bold text-gray-300 pt-2">핵심 보충제</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div><label class="form-label">BCAA(g)</label><input type="number" id="bcaa-input" class="form-input"></div>
+                            <div><label class="form-label">크레아틴(g)</label><input type="number" id="creatine-input" class="form-input"></div>
+                            <div><label class="form-label">글루타민(g)</label><input type="number" id="glutamine-input" class="form-input"></div>
+                        </div>
+                     </div>
+                    <button id="record-nutrition-btn" class="w-full btn-secondary font-bold py-3 rounded-lg mt-4 text-lg">영양 기록해!</button>
+                </div>
+                
+                <!-- 작전 로그(훈련 기록 목록) 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">작전 로그</h2>
+                    <div id="session-list" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <p id="empty-session-message" class="text-center text-gray-500 py-4">운동 세션 기록이 없습니다.</p>
+                    </div>
+                </div>
+
+                <!-- 영양 로그(영양 기록 목록) 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">영양 로그</h2>
+                    <div id="nutrition-list" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <p id="empty-nutrition-message" class="text-center text-gray-500 py-4">영양 기록이 없습니다.</p>
+                    </div>
+                </div>
+                 <!-- AI 스파르타 영양 코치 챗봇 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 스파르타 영양 코치</h2>
+                    <!-- 채팅 메시지가 표시될 영역 -->
+                    <div id="chat-messages" class="bg-gray-900 rounded-lg">
+                        <div class="chat-message ai-message">안녕하세요! 당신의 데이터를 기반으로 한 영양 질문에 답변해 드립니다.</div>
+                    </div>
+                    <!-- 메시지 입력 및 전송 영역 -->
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" class="form-input flex-grow" placeholder="메시지를 입력하세요...">
+                        <button id="chat-send-btn" class="btn-primary font-bold px-4 rounded-lg">전송</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 오른쪽 컬럼: 데이터 시각화 및 분석 섹션 -->
+            <section class="lg:col-span-2 flex flex-col gap-6">
+                <!-- 역대 최고 기록 카드 -->
+                <div class="card p-6 text-center">
+                    <h2 class="text-2xl font-bold text-gray-50">역대 최고 기록 (총 볼륨)</h2>
+                    <div id="trophy-container" class="mt-4 flex flex-col items-center trophy-container">
+                        <div class="trophy-emoji">🏆</div>
+                        <p id="personal-best-volume" class="text-3xl font-extrabold volume-color mt-2">0kg</p>
+                    </div>
+                </div>
+                
+                <!-- 주간 성취도 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-gray-50 mb-4">주간 성취도</h2>
+                    <p class="text-gray-400 mb-4">이번 주 당신의 발자취입니다. 꾸준함이 승리를 만듭니다.</p>
+                    <!-- 운동한 날을 표시할 스탬프 영역 -->
+                    <div id="achievement-stamps" class="grid grid-cols-7 gap-2 text-center">
+                    </div>
+                </div>
+
+                <!-- 최신 세션과 이전 세션 비교 카드 -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-gray-50 mb-4">전략 분석: 과거의 나 VS 현재의 나</h2>
+                    <div id="comparison-card" class="space-y-4">
+                       <p class="text-center text-gray-500">비교할 세션 데이터가 부족합니다.</p>
+                    </div>
+                </div>
+
+                <!-- 성장 그래프(차트) 카드 -->
+                <div class="card p-6">
+                    <div class="flex flex-wrap justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-50">승리의 연대기</h2>
+                        <!-- 차트에 표시할 운동 필터링 드롭다운 -->
+                        <select id="exercise-filter" class="form-select w-auto">
+                            <option value="total">총 볼륨</option>
+                        </select>
+                    </div>
+                    <p class="text-gray-400 mb-4">이 차트는 당신의 **'총 세션 볼륨'** 또는 **개별 운동 볼륨**의 변화를 보여줍니다. 우상향 그래프는 당신의 성장을 증명합니다.</p>
+                    <div class="chart-container">
+                        <canvas id="progress-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- AI 훈련 분석 카드 -->
+                <div class="card p-6">
+                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 전략 브리핑</h2>
+                     <p class="text-gray-400 mb-4">버튼을 눌러 당신의 훈련 결과를 분석하고, 스트랭스와 회복에 대한 전략적 결정을 내립니다.</p>
+                    <button id="analyze-btn" class="w-full btn-primary font-bold py-3 rounded-lg text-lg">훈련 분석!</button>
+                    <!-- 분석 결과 피드백 표시 영역 -->
+                    <div id="feedback-container" class="mt-4">
+                        <!-- 로딩 인디케이터 -->
+                        <div id="loading-indicator" class="hidden text-center p-4">
+                            <div class="pulse w-8 h-8 rounded-full bg-yellow-500 mx-auto"></div>
+                            <p class="mt-2 text-gray-400">전투 기록 분석 중...</p>
+                        </div>
+                        <!-- 분석 결과 메시지 박스 -->
+                        <div id="feedback-box" class="bg-gray-800 border border-gray-700 rounded-lg p-6 min-h-[150px] flex items-center justify-center">
+                            <p id="feedback-message" class="text-center text-gray-500">분석 버튼을 눌러 당신의 승패를 확인하세요.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI 식단 분석 카드 -->
+                <div class="card p-6">
+                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 전략 식단 브리핑</h2>
+                     <p class="text-gray-400 mb-4">아래 버튼을 눌러 당신의 식단을 분석하고, 신체 정보에 기반한 개인 맞춤형 피드백을 받으세요.</p>
+                    <button id="analyze-diet-btn" class="w-full btn-primary font-bold py-3 rounded-lg text-lg">식단 분석!</button>
+                    <!-- 식단 분석 결과 피드백 표시 영역 -->
+                    <div id="diet-feedback-container" class="mt-4">
+                        <div id="diet-loading-indicator" class="hidden text-center p-4">
+                            <div class="pulse w-8 h-8 rounded-full bg-yellow-500 mx-auto"></div>
+                            <p class="mt-2 text-gray-400">식단 기록 분석 중...</p>
+                        </div>
+                        <div id="diet-feedback-box" class="bg-gray-800 border border-gray-700 rounded-lg p-6 min-h-[150px] flex items-center justify-center">
+                            <p id="diet-feedback-message" class="text-center text-gray-500">사용자 정보를 입력하고 식단을 기록한 후, 분석 버튼을 누르세요.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 커스텀 메시지 박스 (모달) -->
+    <div id="message-box" class="message-box">
+        <p id="message-text" class="text-center text-gray-50"></p>
+        <button id="message-ok-btn" class="btn-primary px-4 py-2 rounded">확인</button>
+    </div>
+
+    <!-- 자바스크립트 코드 시작 -->
+    <script type="module">
+        // Supabase 클라이언트 초기화
+        const { createClient } = supabase;
+        const SUPABASE_URL = 'https://hrtgppadyckuanknxxxr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhydGdwcGFkeWNrdWFua254eHhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNzMwODEsImV4cCI6MjA3Mzc0OTA4MX0.cDhri0Qp5R7OZ4MfFInj8Oq_VQ3Wsh9v00WYJBt610k';
+        const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // 전역 변수 선언
+        let userId, progressChart;
+        let allSessions = []; // 모든 운동 세션 데이터 저장
+        let allNutrition = []; // 모든 영양 데이터 저장
+
+        // UI 요소들을 객체로 관리하여 접근 용이성 확보
+        const ui = {
+            // 사용자 프로필
+            userProfileForm: document.getElementById('user-profile-form'),
+            age: document.getElementById('age'),
+            gender: document.getElementById('gender'),
+            height: document.getElementById('height'),
+            weight: document.getElementById('weight'),
+            activityLevel: document.getElementById('activity-level'),
+            // 세션 기록
+            formContainer: document.getElementById('exercise-form-container'),
+            addBtn: document.getElementById('add-exercise-btn'),
+            recordBtn: document.getElementById('record-session-btn'),
+            list: document.getElementById('session-list'),
+            emptySessionMsg: document.getElementById('empty-session-message'),
+            // 영양 기록
+            proteinInput: document.getElementById('protein-input'),
+            carbsInput: document.getElementById('carbs-input'),
+            fatInput: document.getElementById('fat-input'),
+            bcaaInput: document.getElementById('bcaa-input'),
+            creatineInput: document.getElementById('creatine-input'),
+            glutamineInput: document.getElementById('glutamine-input'),
+            recordNutritionBtn: document.getElementById('record-nutrition-btn'),
+            nutritionList: document.getElementById('nutrition-list'),
+            emptyNutritionMsg: document.getElementById('empty-nutrition-message'),
+            // 분석
+            analyzeBtn: document.getElementById('analyze-btn'),
+            loading: document.getElementById('loading-indicator'),
+            feedbackBox: document.getElementById('feedback-box'),
+            feedbackMsg: document.getElementById('feedback-message'),
+            analyzeDietBtn: document.getElementById('analyze-diet-btn'),
+            dietLoading: document.getElementById('diet-loading-indicator'),
+            dietFeedbackBox: document.getElementById('diet-feedback-box'),
+            dietFeedbackMsg: document.getElementById('diet-feedback-message'),
+            // 차트 및 비교
+            chartCanvas: document.getElementById('progress-chart'),
+            comparisonCard: document.getElementById('comparison-card'),
+            personalBestVolume: document.getElementById('personal-best-volume'),
+            trophyContainer: document.getElementById('trophy-container'),
+            exerciseFilter: document.getElementById('exercise-filter'),
+            achievementStamps: document.getElementById('achievement-stamps'),
+            // 챗봇
+            chatMessages: document.getElementById('chat-messages'),
+            chatInput: document.getElementById('chat-input'),
+            chatSendBtn: document.getElementById('chat-send-btn'),
+            // 일반
+            userIdText: document.getElementById('user-id-text'),
+            messageBox: document.getElementById('message-box'),
+            messageText: document.getElementById('message-text'),
+            messageOkBtn: document.getElementById('message-ok-btn'),
+        };
+        
+        // 커스텀 메시지 박스를 표시하는 함수
+        function showMessage(message) {
+            ui.messageText.innerText = message;
+            ui.messageBox.style.display = 'block';
+        }
+
+        // 메시지 박스의 확인 버튼 클릭 시 박스 숨김
+        ui.messageOkBtn.addEventListener('click', () => { ui.messageBox.style.display = 'none'; });
+
+        // 애플리케이션 초기화 함수
+        async function init() {
+            // 로컬 스토리지에서 사용자 ID를 가져오거나 새로 생성
+            userId = localStorage.getItem('supabaseUserId');
+            if (!userId) {
+                userId = crypto.randomUUID(); // 새로운 고유 ID 생성
+                localStorage.setItem('supabaseUserId', userId);
+            }
+            ui.userIdText.textContent = `사용자 ID: ${userId.substring(0, 8)}...`;
+            
+            // 초기 데이터 로드 및 UI 설정
+            loadUserProfile();
+            initChart();
+            
+            // 데이터 로딩을 병렬로 실행
+            await Promise.all([
+                fetchSessions(),
+                fetchNutrition()
+            ]);
+
+            // 데이터 로드 후 UI 업데이트
+            updateAllUI();
+        }
+        
+        // 사용자 프로필 정보를 로컬 스토리지에 저장
+        function saveUserProfile() {
+            const profile = {
+                age: ui.age.value,
+                gender: ui.gender.value,
+                height: ui.height.value,
+                weight: ui.weight.value,
+                activityLevel: ui.activityLevel.value
+            };
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+        }
+
+        // 로컬 스토리지에서 사용자 프로필 정보를 불러와 UI에 적용
+        function loadUserProfile() {
+            const profile = JSON.parse(localStorage.getItem('userProfile'));
+            if (profile) {
+                ui.age.value = profile.age || '';
+                ui.gender.value = profile.gender || 'male';
+                ui.height.value = profile.height || '';
+                ui.weight.value = profile.weight || '';
+                ui.activityLevel.value = profile.activityLevel || '1.55';
+            }
+        }
+
+        // '전술 추가하기' 버튼 클릭 시 운동 입력 폼 동적 생성
+        function addExerciseInput() {
+            const inputGroup = document.createElement('div');
+            inputGroup.className = 'exercise-input-group flex flex-col space-y-2 p-3 border border-gray-700 rounded-lg';
+            inputGroup.innerHTML = `
+                <input type="text" placeholder="운동명" class="form-input">
+                <div class="input-group-grid">
+                    <input type="number" placeholder="무게(kg)" class="form-input">
+                    <input type="number" placeholder="횟수" class="form-input">
+                    <input type="number" placeholder="세트" class="form-input">
+                    <input type="number" placeholder="휴식(초)" class="form-input">
+                </div>
+            `;
+            ui.formContainer.appendChild(inputGroup);
+        }
+
+        // '훈련기록해!' 버튼 클릭 시 입력된 세션 정보를 Firestore에 저장
+        async function recordSession() {
+            const inputGroups = document.querySelectorAll('.exercise-input-group');
+            let exercises = [];
+            let valid = true;
+
+            // 모든 입력 폼에서 데이터 추출 및 유효성 검사
+            inputGroups.forEach(group => {
+                const name = group.querySelector('input[type="text"]').value.trim();
+                const inputs = group.querySelectorAll('input[type="number"]');
+                const weight = parseFloat(inputs[0].value);
+                const reps = parseInt(inputs[1].value);
+                const sets = parseInt(inputs[2].value);
+                const rest = parseInt(inputs[3].value);
+
+                if (name && [weight, reps, sets, rest].every(val => !isNaN(val) && val >= 0)) {
+                    exercises.push({ name, weight, reps, sets, rest });
+                } else if ([name, weight, reps, sets, rest].some(val => val)) { valid = false; }
+            });
+
+            if (!valid || exercises.length === 0) {
+                showMessage("적어도 하나의 유효한 운동 기록(모든 필드 포함)을 입력해주세요."); return;
+            }
+            
+            // 개인 최고 기록 갱신 확인 및 축하 메시지
+            const oldPersonalBest = Math.max(...allSessions.map(s => s.total_volume), 0);
+            const totalSessionVolume = exercises.reduce((sum, ex) => sum + (ex.weight * ex.reps * ex.sets), 0);
+
+            if (totalSessionVolume > oldPersonalBest && oldPersonalBest > 0) {
+                showMessage("🎉 개인 최고 기록 달성! 🎉\n새로운 전투력을 증명했습니다!");
+                ui.trophyContainer.classList.add('sparkle');
+                setTimeout(() => ui.trophyContainer.classList.remove('sparkle'), 1500);
+            }
+            
+            // Supabase에 데이터 저장
+            try {
+                const { error } = await db.from('sessions').insert({
+                    user_id: userId,
+                    total_volume: totalSessionVolume,
+                    exercises: exercises
+                });
+                if (error) throw error;
+
+                ui.formContainer.innerHTML = ''; addExerciseInput(); // 폼 초기화
+                await fetchSessions(); // 데이터 다시 불러오기
+                updateAllUI(); // UI 업데이트
+            } catch (e) { console.error("세션 기록 실패: ", e); showMessage("세션 기록에 실패했습니다."); }
+        }
+        
+        // '영양 기록해!' 버튼 클릭 시 영양 정보를 Firestore에 저장
+        async function recordNutrition() {
+            const nutritionData = {
+                carbs: parseFloat(ui.carbsInput.value) || 0,
+                protein: parseFloat(ui.proteinInput.value) || 0,
+                fat: parseFloat(ui.fatInput.value) || 0,
+                bcaa: parseFloat(ui.bcaaInput.value) || 0,
+                creatine: parseFloat(ui.creatineInput.value) || 0,
+                glutamine: parseFloat(ui.glutamineInput.value) || 0,
+            };
+
+            if (nutritionData.protein <= 0 && nutritionData.carbs <= 0 && nutritionData.fat <= 0) {
+                showMessage("주요 영양소(탄수화물, 단백질, 지방) 중 하나 이상을 입력해주세요."); return;
+            }
+
+            try {
+                const { error } = await db.from('nutrition').insert({ ...nutritionData, user_id: userId });
+                if (error) throw error;
+                
+                [ui.carbsInput, ui.proteinInput, ui.fatInput, ui.bcaaInput, ui.creatineInput, ui.glutamineInput].forEach(i => i.value = ''); // 입력 필드 초기화
+                showMessage("영양 기록 완료!");
+                await fetchNutrition(); // 데이터 다시 불러오기
+                updateAllUI(); // UI 업데이트
+            } catch (e) { console.error("영양 기록 실패:", e); showMessage("영양 기록에 실패했습니다."); }
+        }
+
+        // Supabase에서 세션 데이터를 가져오는 함수
+        async function fetchSessions() {
+            if (!userId) return;
+            const { data, error } = await db.from('sessions').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+            if (error) {
+                console.error("세션 데이터 로드 오류:", error);
+                return;
+            }
+            allSessions = data;
+        }
+        
+        // Supabase에서 영양 데이터를 가져오는 함수
+        async function fetchNutrition() {
+            if (!userId) return;
+            const { data, error } = await db.from('nutrition').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+             if (error) {
+                console.error("영양 데이터 로드 오류:", error);
+                return;
+            }
+            allNutrition = data;
+        }
+
+        // 데이터가 변경될 때마다 관련된 모든 UI를 업데이트하는 함수
+        function updateAllUI() {
+            // 세션 관련 UI 업데이트
+            renderSessionList(allSessions);
+            updateChart(ui.exerciseFilter.value);
+            updateComparisonCard();
+            updatePersonalBest();
+            updateExerciseFilter();
+            updateWeeklyAchievement();
+            // 영양 관련 UI 업데이트
+            renderNutritionList(allNutrition);
+        }
+
+        // 세션 목록을 UI에 렌더링
+        function renderSessionList(sessions) {
+            ui.list.innerHTML = '';
+            if (sessions.length === 0) { ui.list.appendChild(ui.emptySessionMsg); ui.emptySessionMsg.style.display = 'block'; return; }
+            
+            ui.emptySessionMsg.style.display = 'none';
+            sessions.forEach(session => {
+                const item = document.createElement('div');
+                item.className = 'flex flex-col bg-gray-900 p-3 rounded-lg border border-gray-700';
+                const date = session.created_at ? new Date(session.created_at).toLocaleDateString() : '날짜 미상';
+                let exercisesHtml = session.exercises.map(ex => `<p class="text-xs text-gray-500">- ${ex.name}: ${ex.weight}kg x ${ex.reps}회 x ${ex.sets}세트</p>`).join('');
+                item.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-gray-200"> <p>${date}</p> <p class="text-sm volume-color">${session.total_volume.toLocaleString()}kg</p> </div>
+                    <div class="mt-2 text-sm text-gray-300">${exercisesHtml}</div>`;
+                ui.list.appendChild(item);
+            });
+        }
+        
+        // 영양 목록을 UI에 렌더링
+        function renderNutritionList(nutrition) {
+            ui.nutritionList.innerHTML = '';
+            if (nutrition.length === 0) { ui.nutritionList.appendChild(ui.emptyNutritionMsg); ui.emptyNutritionMsg.style.display = 'block'; return; }
+
+            ui.emptyNutritionMsg.style.display = 'none';
+            nutrition.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-900 p-3 rounded-lg border border-gray-700';
+                const date = entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '날짜 미상';
+                item.innerHTML = `
+                    <p class="font-bold text-gray-200 mb-2">${date}</p>
+                    <div class="text-xs grid grid-cols-3 gap-1 text-gray-400">
+                        <span>탄: ${entry.carbs || 0}g</span>
+                        <span>단: ${entry.protein || 0}g</span>
+                        <span>지: ${entry.fat || 0}g</span>
+                        <span>BCAA: ${entry.bcaa || 0}g</span>
+                        <span>크레아틴: ${entry.creatine || 0}g</span>
+                        <span>글루타민: ${entry.glutamine || 0}g</span>
+                    </div>`;
+                ui.nutritionList.appendChild(item);
+            });
+        }
+        
+        // 주간 운동 성취도를 스탬프 형태로 UI에 표시
+        function updateWeeklyAchievement() {
+            const stampsContainer = ui.achievementStamps;
+            stampsContainer.innerHTML = '';
+
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+            const workedOutDays = new Set();
+
+            for (const session of allSessions) {
+                if (session.created_at) {
+                    const sessionDate = new Date(session.created_at);
+                    if (sessionDate >= startOfWeek) {
+                        let sessionDay = sessionDate.getDay();
+                        sessionDay = (sessionDay === 0) ? 6 : sessionDay - 1;
+                        workedOutDays.add(sessionDay);
+                    }
+                }
+            }
+
+            for (let i = 0; i < 7; i++) {
+                const dayDiv = document.createElement('div');
+                const dayLabel = document.createElement('p');
+                dayLabel.className = 'text-sm text-gray-500';
+                dayLabel.textContent = weekDays[i];
+
+                const stampCircle = document.createElement('div');
+                stampCircle.className = 'w-10 h-10 mx-auto mt-1 rounded-full flex items-center justify-center text-2xl bg-gray-700 transition-colors';
+
+                if (workedOutDays.has(i)) {
+                    stampCircle.innerHTML = '🐾';
+                    stampCircle.classList.remove('bg-gray-700');
+                    stampCircle.classList.add('bg-amber-500');
+                }
+
+                dayDiv.appendChild(dayLabel);
+                dayDiv.appendChild(stampCircle);
+                stampsContainer.appendChild(dayDiv);
+            }
+        }
+
+        // Chart.js를 사용하여 차트 초기화
+        function initChart() {
+            const ctx = ui.chartCanvas.getContext('2d');
+            progressChart = new Chart(ctx, {
+                type: 'line', data: { labels: [], datasets: [{ label: '볼륨(kg)', data: [], borderColor: '#f5c000', backgroundColor: 'rgba(245, 192, 0, 0.1)', fill: true, tension: 0.1 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: '#a0a0a0' }, grid: { color: '#333' } }, x: { ticks: { color: '#a0a0a0' }, grid: { color: '#333' } } }, plugins: { legend: { display: false } } }
+            });
+        }
+        
+        // 기록된 운동 목록을 기반으로 차트 필터 옵션 동적 업데이트
+        function updateExerciseFilter() {
+            const exerciseNames = new Set(allSessions.flatMap(s => s.exercises.map(e => e.name)));
+            const currentOptions = new Set([...ui.exerciseFilter.options].map(o => o.value));
+            exerciseNames.forEach(name => {
+                if (!currentOptions.has(name)) {
+                    const option = document.createElement('option');
+                    option.value = name; option.textContent = name;
+                    ui.exerciseFilter.appendChild(option);
+                }
+            });
+        }
+
+        // 필터 값에 따라 차트 데이터 업데이트 및 다시 그리기
+        function updateChart(filter = 'total') {
+            if (!progressChart) return;
+            const sortedSessions = [...allSessions].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            let chartData;
+            if (filter === 'total') {
+                chartData = sortedSessions.map(d => d.total_volume);
+            } else {
+                chartData = sortedSessions.map(session => session.exercises.filter(ex => ex.name === filter).reduce((sum, ex) => sum + (ex.weight * ex.reps * ex.sets), 0));
+            }
+            progressChart.data.labels = sortedSessions.map(d => d.created_at ? new Date(d.created_at).toLocaleDateString() : '미상');
+            progressChart.data.datasets[0].data = chartData;
+            progressChart.update();
+        }
+
+        // 최신 두 세션을 비교하여 UI에 표시
+        function updateComparisonCard() {
+            const sortedSessions = [...allSessions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            if (sortedSessions.length < 2) {
+                ui.comparisonCard.innerHTML = `<p class="text-center text-gray-500">비교할 세션 데이터가 부족합니다.</p>`; return;
+            }
+            const latest = sortedSessions[0];
+            const previous = sortedSessions[1];
+            const allExerciseNames = new Set([...latest.exercises.map(e => e.name), ...previous.exercises.map(e => e.name)]);
+            let comparisonHtml = `<div class="grid grid-cols-2 gap-4 text-center mb-4">
+                <div><p class="font-bold">${new Date(latest.created_at).toLocaleDateString()} (최신)</p><p class="text-sm volume-color">${latest.total_volume.toLocaleString()}kg</p></div>
+                <div><p class="font-bold">${new Date(previous.created_at).toLocaleDateString()} (이전)</p><p class="text-sm text-gray-400">${previous.total_volume.toLocaleString()}kg</p></div>
+            </div>`;
+
+            allExerciseNames.forEach(name => {
+                const latestEx = latest.exercises.find(e => e.name === name);
+                const prevEx = previous.exercises.find(e => e.name === name);
+                const latestVol = latestEx ? latestEx.weight * latestEx.reps * latestEx.sets : 0;
+                const prevVol = prevEx ? prevEx.weight * prevEx.reps * prevEx.sets : 0;
+                let arrow = (latestVol > prevVol) ? `<span class="arrow-up text-lg">▲</span>` : (latestVol < prevVol) ? `<span class="arrow-down text-lg">▼</span>` : `<span class="text-gray-500 text-lg">=</span>`;
+                comparisonHtml += `
+                    <div class="comparison-grid p-2 bg-gray-900 rounded">
+                        <p class="exercise-name font-bold col-span-3 text-center text-amber-400 mb-1">${name}</p>
+                        <div class="text-center text-sm"><p>${latestEx ? `${latestEx.weight}kg x ${latestEx.reps} x ${latestEx.sets}` : '기록 없음'}</p><p class="font-bold">${latestVol.toLocaleString()}kg</p></div>
+                        <div class="text-center">${arrow}</div>
+                        <div class="text-center text-sm text-gray-400"><p>${prevEx ? `${prevEx.weight}kg x ${prevEx.reps} x ${prevEx.sets}` : '기록 없음'}</p><p class="font-bold">${prevVol.toLocaleString()}kg</p></div>
+                    </div>`;
+            });
+            ui.comparisonCard.innerHTML = comparisonHtml;
+        }
+
+        // 개인 최고 기록(총 볼륨)을 UI에 업데이트
+        function updatePersonalBest() {
+            const personalBest = Math.max(...allSessions.map(s => s.total_volume), 0);
+            ui.personalBestVolume.textContent = `${personalBest.toLocaleString()}kg`;
+        }
+        
+        // '훈련 분석!' 버튼 클릭 시 최신 세션을 기반으로 동기부여 메시지 및 조언 생성
+        async function analyzeRoutine() {
+            ui.loading.style.display = 'block';
+            ui.feedbackBox.style.display = 'none';
+            ui.analyzeBtn.disabled = true;
+            
+            const sortedSessions = [...allSessions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const latestSession = sortedSessions[0];
+            const previousSession = sortedSessions[1];
+            
+            let motivationalMessage = "", ragAdvice = "", feedbackColorClass = "";
+
+            if (!latestSession) {
+                motivationalMessage = `<p class="text-xl font-bold">아직 전투 기록이 없습니다.</p><p class="mt-2">위대한 여정의 첫걸음을 내딛으십시오. 지금 바로 훈련을 기록하세요!</p>`;
+                feedbackColorClass = "bg-gray-800 border-gray-700";
+            } else if (!previousSession) {
+                 motivationalMessage = `<p class="text-xl font-bold text-green-500">첫 번째 전투 기록을 축하합니다!</p><p class="mt-2">이제 당신의 데이터가 쌓이기 시작했습니다. 다음 훈련에서 오늘보다 강해진 자신을 증명하십시오.</p>`;
+                 feedbackColorClass = "bg-green-950 border-green-800";
+            } else {
+                const volumeDiff = latestSession.total_volume - previousSession.total_volume;
+
+                if (volumeDiff > 0) {
+                    motivationalMessage = `<p class="text-2xl font-black black-han-sans text-green-500">과거의 나를 완벽히 이겨냈군요!</p><p class="mt-2">오늘 정말 빡셌습니다! 총 볼륨이 ${volumeDiff.toLocaleString()}kg이나 늘었습니다. 이 성장에 안주하지 마십시오.</p>`;
+                    ragAdvice = `<h4 class="font-bold mt-4 pt-4 border-t border-gray-700">AI 코치 조언</h4><p class="text-sm mt-1">이 기세 그대로 다음 목표를 향해 정진합시다! 훌륭한 성과입니다. 몸이 보내는 회복 신호를 무시하지 말고, 충분한 영양과 휴식을 보장해야 이 성장을 유지할 수 있습니다.</p>`;
+                    feedbackColorClass = "bg-green-950 border-green-800";
+                } else if (volumeDiff < 0) {
+                    motivationalMessage = `<p class="text-2xl font-black black-han-sans text-red-500">오늘은 어제의 나에게 졌습니다.</p><p class="mt-2">총 볼륨이 ${Math.abs(volumeDiff).toLocaleString()}kg 줄었습니다. 괜찮습니다. 패배를 인정하고 분석해야 더 강해질 수 있습니다.</p>`;
+                    ragAdvice = `<h4 class="font-bold mt-4 pt-4 border-t border-gray-700">AI 코치 조언</h4><p class="text-sm mt-1">이건 후퇴가 아니라, 더 높이 뛰기 위한 준비입니다. 몸이 보내는 피로 신호일 수 있으니, 무리하지 말고 충분히 휴식하며 다음 전투를 준비하십시오. 쉬는 것도 훈련의 일부입니다.</p>`;
+                    feedbackColorClass = "bg-red-950 border-red-800";
+                } else {
+                    motivationalMessage = `<p class="text-2xl font-black black-han-sans text-amber-500">제자리걸음은 후퇴나 마찬가지입니다.</p><p class="mt-2">몸이 현재의 자극에 완벽히 적응했다는 신호입니다. 안주하지 마십시오!</p>`;
+                    ragAdvice = `<h4 class="font-bold mt-4 pt-4 border-t border-gray-700">AI 코치 조언</h4><p class="text-sm mt-1">다음 훈련에서는 운동 순서를 바꾸거나, 드롭 세트 같은 새로운 방법으로 이 벽을 부숴버리십시오! 한계를 넘어서야 성장할 수 있습니다.</p>`;
+                    feedbackColorClass = "bg-amber-950 border-amber-800";
+                }
+            }
+            
+            // 1초 후 로딩 숨기고 결과 표시
+            setTimeout(() => {
+                ui.loading.style.display = 'none';
+                ui.feedbackBox.style.display = 'block';
+                ui.feedbackBox.className = `card p-6 min-h-[150px] flex items-center justify-center ${feedbackColorClass}`;
+                ui.feedbackMsg.innerHTML = motivationalMessage + (ragAdvice ? ragAdvice : '');
+                ui.analyzeBtn.disabled = false;
+            }, 1000);
+        }
+        
+        // '식단 분석!' 버튼 클릭 시 사용자 정보와 최신 식단 기록을 바탕으로 분석 및 조언 생성
+        async function analyzeDiet() {
+            ui.dietLoading.style.display = 'block';
+            ui.dietFeedbackBox.style.display = 'none';
+            ui.analyzeDietBtn.disabled = true;
+
+            const profile = JSON.parse(localStorage.getItem('userProfile'));
+            const sortedNutrition = [...allNutrition].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const latestNutrition = sortedNutrition[0];
+
+            // 유효성 검사
+            if (!profile || !profile.age || !profile.height || !profile.weight) {
+                 setTimeout(() => {
+                    ui.dietLoading.style.display = 'none';
+                    ui.dietFeedbackBox.style.display = 'block';
+                    ui.dietFeedbackMsg.innerHTML = `<p class="text-red-400">사용자 정보(나이, 키, 체중 등)를 모두 입력해야 정확한 분석이 가능합니다.</p>`;
+                    ui.analyzeDietBtn.disabled = false;
+                }, 500);
+                return;
+            }
+             if (!latestNutrition) {
+                 setTimeout(() => {
+                    ui.dietLoading.style.display = 'none';
+                    ui.dietFeedbackBox.style.display = 'block';
+                    ui.dietFeedbackMsg.innerHTML = `<p class="text-amber-400">분석할 식단 기록이 없습니다. 먼저 오늘의 영양 섭취를 기록해주세요.</p>`;
+                    ui.analyzeDietBtn.disabled = false;
+                }, 500);
+                return;
+            }
+
+            // 해리스-베네딕트 방정식으로 기초대사량(BMR) 및 활동대사량(TDEE) 계산
+            const { age, gender, height, weight, activityLevel } = profile;
+            let bmr;
+            if (gender === 'male') {
+                bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+            } else {
+                bmr = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+            }
+            const tdee = Math.round(bmr * activityLevel);
+
+            // 권장 섭취량 계산
+            const recProtein = Math.round(weight * 1.8);
+            const recFat = Math.round((tdee * 0.25) / 9);
+            const recCarbs = Math.round((tdee - (recProtein * 4) - (recFat * 9)) / 4);
+            const loggedCalories = (latestNutrition.carbs * 4) + (latestNutrition.protein * 4) + (latestNutrition.fat * 9);
+
+            // Gemini API에 전달할 프롬프트 구성
+            const systemPrompt = `당신은 전문 영양 코치입니다. 제공된 사용자 데이터와 계산된 영양 정보를 바탕으로, 상세하고 실행 가능한 식단 분석 리포트를 한국어로 작성해주세요. 리포트는 다음 항목을 포함해야 합니다:
+1.  **총평**: 현재 섭취량과 권장 섭취량을 비교하여 긍정적이고 격려하는 톤으로 전반적인 평가를 내립니다.
+2.  **상세 분석**: 탄수화물, 단백질, 지방 섭취량을 각각 권장량과 비교하여 분석하고, 각 영양소의 역할과 중요성을 간단히 설명합니다.
+3.  **구체적인 조언**: 분석 결과를 바탕으로, 사용자가 다음 식사나 다음 날 식단에서 개선할 수 있는 구체적인 행동 지침을 2-3가지 제안합니다. (예: "단백질이 부족하니 다음 식사에 닭가슴살 100g을 추가해보세요.")
+4.  **형식**: 마크다운을 사용하여 제목, 목록 등을 보기 좋게 구성해주세요.
+5.  **강조 표시**: 섭취량이 권장량에 비해 '부족'한 경우, 해당 수치나 설명을 \`@@RED@@부족한 부분@@/RED@@\`으로 감싸주세요. 섭취량이 적절하거나 초과한 경우에는 이 표시를 사용하지 마세요.`;
+
+            const context = `### 분석 데이터
+- **사용자 프로필**: 나이 ${age}세, 성별 ${gender}, 키 ${height}cm, 체중 ${weight}kg, 활동 수준 ${activityLevel}
+- **계산된 권장 섭취량**:
+  - 총 칼로리(TDEE): 약 ${tdee} kcal
+  - 탄수화물: ${recCarbs} g
+  - 단백질: ${recProtein} g
+  - 지방: ${recFat} g
+- **최근 기록된 섭취량**:
+  - 총 칼로리: 약 ${loggedCalories} kcal
+  - 탄수화물: ${latestNutrition.carbs} g
+  - 단백질: ${latestNutrition.protein} g
+  - 지방: ${latestNutrition.fat} g
+  - BCAA: ${latestNutrition.bcaa} g
+  - 크레아틴: ${latestNutrition.creatine} g
+  - 글루타민: ${latestNutrition.glutamine} g
+
+위 데이터를 바탕으로 식단 분석 리포트를 작성해주세요.`;
+
+
+
+            // 중요: 여기에 .env 파일에 있는 본인의 GEMINI_API_KEY를 직접 붙여넣으세요. const apiKey = ""; // API 키는 Canvas 환경에서 자동으로 제공됩니다.
+            // 예시: const apiKey = "AIzaSy...YOUR_KEY";
+
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: context }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                };
+
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // 서버로 보낼 때는 payload 객체로 한번 감싸줍니다.
+                    body: JSON.stringify({ payload })
+                });
+
+                if (!response.ok) throw new Error(`API 요청 실패: ${response.status}`);
+
+                const result = await response.json();
+                const feedback = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (feedback) {
+                    // 마크다운 및 커스텀 태그를 HTML로 변환하여 표시
+                    const htmlFeedback = feedback
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 볼드체 변환
+                        .replace(/@@RED@@(.*?)@@\/RED@@/g, '<span class="text-red-400 font-bold">$1</span>') // 빨간색 강조 변환
+                        .replace(/(\r\n|\n|\r)/gm, "<br>"); // 줄바꿈 변환
+                    ui.dietFeedbackMsg.innerHTML = htmlFeedback;
+                } else {
+                    throw new Error("AI가 유효한 답변을 생성하지 못했습니다.");
+                }
+            } catch (error) {
+                console.error("식단 분석 AI 호출 오류:", error);
+                ui.dietFeedbackMsg.innerHTML = `<p class="text-red-400">AI 분석 리포트를 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.</p>`;
+            } finally {
+                ui.dietLoading.style.display = 'none';
+                ui.dietFeedbackBox.style.display = 'block';
+                ui.analyzeDietBtn.disabled = false;
+            }
+        }
+
+        // --- 챗봇 로직 ---
+        // 채팅 메시지를 UI에 추가하는 함수
+        function addChatMessage(message, sender, isHtml = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}-message`;
+            if (isHtml) {
+                messageDiv.innerHTML = message;
+            } else {
+                messageDiv.textContent = message;
+            }
+            ui.chatMessages.appendChild(messageDiv);
+            ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; // 항상 최신 메시지가 보이도록 스크롤
+        }
+
+        // 메시지 전송 처리 함수
+        async function handleSendMessage() {
+            const userInput = ui.chatInput.value.trim();
+            if (!userInput) return;
+
+            addChatMessage(userInput, 'user');
+            ui.chatInput.value = '';
+            ui.chatSendBtn.disabled = true;
+
+            // '생각 중' 인디케이터 표시
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'chat-message ai-message';
+            thinkingDiv.innerHTML = `<span class="pulse inline-block w-2 h-2 bg-gray-400 rounded-full"></span>`;
+            ui.chatMessages.appendChild(thinkingDiv);
+            ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
+            
+            try {
+                // AI 응답 생성 함수 호출
+                const aiResponse = await getAiNutritionAdvice(userInput);
+                thinkingDiv.remove(); // '생각 중' 인디케이터 제거
+
+                // AI 응답에 포함될 수 있는 마크다운 및 커스텀 태그를 HTML로 변환
+                const htmlResponse = aiResponse
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\[WARNING\](.*?)\[\/WARNING\]/g, '<span class="text-red-400 font-bold underline">$1</span>')
+                    .replace(/(\r\n|\n|\r)/gm, "<br>");
+
+                addChatMessage(htmlResponse, 'ai', true);
+            } catch (error) {
+                console.error("AI 응답 오류:", error);
+                thinkingDiv.textContent = "죄송합니다, 답변을 생성하는 데 문제가 발생했습니다.";
+            } finally {
+                ui.chatSendBtn.disabled = false;
+            }
+        }
+        
+        // RAG(검색 증강 생성)를 시뮬레이션하여 AI 영양 조언을 생성하는 함수
+        async function getAiNutritionAdvice(userQuery) {
+            // 1. Retrieve Context (사용자 데이터 검색)
+            const profile = JSON.parse(localStorage.getItem('userProfile')) || {};
+            const recentNutrition = allNutrition.slice(-3); // Get last 3 entries
+            const recentSessions = allSessions.slice(-3);   // Get last 3 entries
+
+            // 2. Construct Prompt (LLM에 전달할 프롬프트 구성)
+            let context = "### 사용자 데이터\n";
+            context += `- 프로필: 나이 ${profile.age || 'N/A'}, 성별 ${profile.gender || 'N/A'}, 키 ${profile.height || 'N/A'}cm, 체중 ${profile.weight || 'N/A'}kg\n`;
+            
+            context += "- 최근 영양 기록 (최대 3개):\n";
+            if(recentNutrition.length > 0) {
+                recentNutrition.forEach(n => {
+                    context += `  - 탄수화물: ${n.carbs}g, 단백질: ${n.protein}g, 지방: ${n.fat}g\n`;
+                });
+            } else {
+                context += "  - 기록 없음\n";
+            }
+
+            context += "- 최근 훈련 기록 (최대 3개):\n";
+             if(recentSessions.length > 0) {
+                recentSessions.forEach(s => {
+                    context += `  - 날짜: ${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'N/A'}, 총 볼륨: ${s.total_volume}kg\n`;
+                });
+            } else {
+                context += "  - 기록 없음\n";
+            }
+            
+            const systemPrompt = `너는 '스파르타 코치이자 세계적인 영양코치다. 너는 사용자의 훈련 기록을 분석하여, 그들의 성장을 칭찬하거나, 나태함을 질책한다. 너의 목표는 사용자가 한계를 넘어서도록 동기를 부여하는 것이다.
+- 마지막 훈련 세션의 총 볼륨이 이전 세션보다 높으면, 그 성과를 인정하되, 자만하지 말라고 경고하라. (예: "과거의 나를 이겼군! 하지만 이건 시작에 불과하다!")
+- 볼륨이 낮아졌다면, 패배를 인정하고 다음 전투를 준비하라고 엄격하게 조언하라. (예: "오늘은 졌지만, 이 패배에서 배워라. 쉬는 것도 훈련이다.")
+- 볼륨이 같다면, 정체는 후퇴와 같다고 경고하며 새로운 자극을 찾으라고 명령하라. (예: "제자리걸음은 후퇴다! 다음엔 무게를 올리거나, 세트 수를 늘려라!")
+- 훈련 성과가 부진할 경우(볼륨 정체 또는 감소), 단백질 섭취 부족 등 필수 영양 문제의 원인을 꼼꼼히 찾아 지적하고 영양 기록을 점검하라고 명령할 수 있다. 사용자가 먹은 필수 영양소가 권장량 기준에 비해 낮을 시, 해당 영양소 부분에 \`[WARNING]\`과 \`[/WARNING]\` 태그를 반드시 붙여라. (예: \`[WARNING]단백질 섭취량이 부족하다.[/WARNING]\`)
+- 분석은 항상 짧고 강력한 총평으로 시작하고, 그 뒤에 구체적인 조언을 1~2가지 제공하라. 제시한 영양 관련 조언을 사용자가 계속 무시하는 패턴이 데이터상으로 보일 경우, "경고: 현재 영양 상태로는 근육 성장에 부적합하다." 라는 메시지를 출력하라.
+- 말투는 단호해야 하며, 반드시 주어진 사용자의 데이터에만 근거하여 분석하고 조언해야 한다. 주어진 데이터에 없는 내용은 절대로 추측하거나 배경지식을 활용해 말하지 마라. 🔥, 💪, 🏋️ 이모지를 사용하라.`;
+            const userQueryWithContext = context + "\n### 사용자의 질문\n" + userQuery;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQueryWithContext }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+            try {
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ payload })
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Error Response:", errorBody);
+                    throw new Error(`API 요청 실패: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    return candidate.content.parts[0].text;
+                } else {
+                    return "AI가 답변을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.";
+                }
+            } catch (error) {
+                console.error("Gemini API 호출 중 오류 발생:", error);
+                return "AI와 통신하는 중 오류가 발생했습니다.";
+            }
+        }
+
+        // 애플리케이션 메인 실행 함수
+        async function main() {
+            await init(); // 초기화
+            // 모든 이벤트 리스너 등록
+            ui.addBtn.addEventListener('click', addExerciseInput);
+            ui.recordBtn.addEventListener('click', recordSession);
+            ui.analyzeBtn.addEventListener('click', analyzeRoutine);
+            ui.recordNutritionBtn.addEventListener('click', recordNutrition);
+            ui.analyzeDietBtn.addEventListener('click', analyzeDiet);
+            
+            ui.userProfileForm.addEventListener('change', saveUserProfile);
+
+            ui.exerciseFilter.addEventListener('change', (e) => updateChart(e.target.value));
+            
+            // 챗봇 이벤트 리스너
+            ui.chatSendBtn.addEventListener('click', handleSendMessage);
+            ui.chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') { handleSendMessage(); }
+            });
+
+            addExerciseInput(); // 페이지 로드 시 기본 운동 입력 폼 1개 추가
+        }
+
+        // 페이지 로드가 완료되면 main 함수 실행
+        window.onload = main;
+    </script>
+</body>
+</html>
