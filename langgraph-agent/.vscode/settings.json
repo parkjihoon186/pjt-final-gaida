@@ -1,0 +1,8 @@
+{
+  "python.venvPath": "", 
+  "python.terminal.activateEnvironment": true,
+  "python.defaultInterpreterPath": "/Users/jaehyuntak/Desktop/project_at25-09-15/pjt-final-gaida/langgraph-agent/.venv/bin/python3",
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+  "jupyter.jupyterServerType": "local",
+  "python.pythonPath": "/Users/jaehyuntak/Desktop/project_at25-09-15/pjt-final-gaida/langgraph-agent/.venv/bin/python3"
+}
