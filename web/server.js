@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-require('dotenv').config(); // .env 파일에서 환경 변수를 로드합니다.
+require('dotenv').config({ path: '../.env' }); // .env 파일에서 환경 변수를 로드합니다.
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
