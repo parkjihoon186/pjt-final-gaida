@@ -10,40 +10,67 @@ Sesac GADA 과정 1기 최종프로젝트: **AI 기반 운동 및 식단 관리 
 
 본 프로젝트는 **이중 백엔드(Dual Backend)** 구조를 채택하여 웹 서비스와 AI 에이전트 기능을 분리하고 확장성을 확보했습니다.
 
+
+
+
 ```mermaid
 graph TD
-    subgraph "사용자"
+    subgraph "User Layer"
         U[Browser]
     end
-
-    subgraph "프론트엔드"
-        FE[index.html <br/> Tailwind CSS, Chart.js]
+    
+    subgraph "Frontend Layer"
+        FE["index.html<br/>Tailwind CSS, Chart.js"]
     end
-
-    subgraph "백엔드 서비스"
-        B1[Express.js (Node.js) <br/> Web API Server]
-        B2[FastAPI (Python) <br/> LangGraph Agent Server]
+    
+    subgraph "Backend Services"
+        B1["Express.js (Node.js)<br/>Web API Server"]
+        B2["FastAPI (Python)<br/>LangGraph Agent Server"]
     end
-
-    subgraph "AI 모델"
+    
+    subgraph "AI Models"
         GPT[OpenAI GPT]
     end
-
-    subgraph "데이터베이스"
-        DB[(Supabase <br/> PostgreSQL)]
+    
+    subgraph "Database Layer"
+        DB[("Supabase<br/>PostgreSQL")]
     end
-
+    
+    %% User to Frontend
     U --> FE
-    FE --> |API 요청 (AI 코치, 데이터 CRUD)| B1
-    B1 --> |AI 분석 요청| GPT
-    B1 --> |데이터 프록시| DB
-
-    %% 향후 웹 UI에서 직접 Agent 서버를 호출하는 흐름을 나타냅니다.
-    FE --> |Agent API 요청| B2
-    B2 --> |Tool-Calling, 의도 분석| GPT
-    B2 --> |도구 실행 (운동 기록 조회/추가)| DB
+    
+    %% Frontend to Backend Services
+    FE -->|"API Request<br/>(AI Coach, Data CRUD)"| B1
+    FE -->|"Agent API Request"| B2
+    
+    %% Backend to AI Models
+    B1 -->|"AI Analysis Request"| GPT
+    B2 -->|"Tool-Calling<br/>Intent Analysis"| GPT
+    
+    %% Backend to Database
+    B1 -->|"Data Proxy"| DB
+    B2 -->|"Tool Execution<br/>(Exercise Record Query/Add)"| DB
 ```
 
+```mermaid
+graph TD;
+        __start__([<p>__start__</p>]):::first
+        AgentDecision(AgentDecision)
+        ToolExecutor(ToolExecutor)
+        ResultProcessor(ResultProcessor)
+        ErrorHandler(ErrorHandler)
+        __end__([<p>__end__</p>]):::last
+        AgentDecision -.-> ErrorHandler;
+        AgentDecision -.-> ResultProcessor;
+        AgentDecision -.-> ToolExecutor;
+        ToolExecutor --> ResultProcessor;
+        __start__ --> AgentDecision;
+        ErrorHandler --> __end__;
+        ResultProcessor --> __end__;
+        classDef default fill:#f2f0ff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#bfb6fc
+```
 -   **Express.js (Node.js) 백엔드**: 프론트엔드의 메인 API 서버 역할을 합니다. AI 코칭, 전략 브리핑, 데이터베이스 프록시 기능을 수행합니다.
 -   **FastAPI (Python) 백엔드**: LangGraph 기반의 ReAct 에이전트를 API로 제공합니다. 복잡한 Tool-Calling 로직을 처리하여 사용자의 자연어 요청(예: "내 운동 기록 보여줘")을 수행합니다.
 
