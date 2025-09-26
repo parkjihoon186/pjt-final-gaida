@@ -20,8 +20,8 @@ TOOLS = [get_workout_history, add_workout_session]
 # LLM 초기화 (gpt-4가 추론 및 Tool Calling 성능이 더 좋으므로, 필요시 gpt-4o-mini로 변경 가능)
 llm = ChatOpenAI(model="gpt-4", temperature=0)
 
-# Decision 노드에서 사용할 LLM (gpt-4o-mini로 변경하여 비용 최적화)
-llm_decision = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+# Decision 노드에서 사용할 LLM (gpt-4로 )
+llm_decision = ChatOpenAI(model="gpt-4", temperature=0)
 
 # Agent Executor 설정 (Tool 호출 로직 처리를 위해 필요)
 agent = create_tool_calling_agent(llm, TOOLS, hub.pull("hwchase17/openai-tools-agent"))
@@ -31,9 +31,18 @@ agent_executor = AgentExecutor(agent=agent, tools=TOOLS, verbose=True)
 # A-2: AgentDecision 노드 구현 (Graph의 라우터 역할)
 # ----------------------------------------------------
 
+def extract_message_content(message):
+    """메시지에서 content를 안전하게 추출하는 헬퍼 함수"""
+    if hasattr(message, 'content'):
+        return message.content
+    elif isinstance(message, dict) and 'content' in message:
+        return message['content']
+    else:
+        return str(message)
+
 def agent_decision(state: State) -> Dict[str, Union[AgentDecisionModel, str, int]]:
     """
-    사용자 질의를 분석하여 다음 행동(도구 호출, 최종 답변, 에러)을 결정합니다.
+    사용자 질의를 분석하여 다음 행동(응답, 도구 호출, 최종 답변, 에러)을 결정합니다.
     """
     print(f"--- Node: AgentDecision (Loop: {state.get('loop_counter', 0)}) ---")
     
@@ -43,8 +52,20 @@ def agent_decision(state: State) -> Dict[str, Union[AgentDecisionModel, str, int
     # LLM이 도구 호출 또는 최종 답변을 결정하도록 유도하는 프롬프트
     
     # AgentExecutor를 사용하여 결정 로직을 간결하게 구현합니다.
+    # 메시지에서 content 추출 (dict 또는 Message 객체 모두 처리)
+    if state["messages"]:
+        last_message = state["messages"][-1]
+        if hasattr(last_message, 'content'):
+            input_text = last_message.content
+        elif isinstance(last_message, dict) and 'content' in last_message:
+            input_text = last_message['content']
+        else:
+            input_text = str(last_message)
+    else:
+        input_text = "안녕하세요"
+    
     agent_input = {
-        "input": state["messages"][-1].content,
+        "input": input_text,
         "chat_history": state["messages"][:-1],
         # "intermediate_steps": state.get("intermediate_steps", [])
     }
@@ -62,7 +83,8 @@ def agent_decision(state: State) -> Dict[str, Union[AgentDecisionModel, str, int
             tool_calls = agent_outcome["tool_calls"]
             decision_model = AgentDecisionModel(
                 action_type="tool_call",
-                tool_calls=tool_calls
+                tool_calls=tool_calls,
+                subgraph_id=None
             )
             # LangGraph에서는 AgentExecutor가 전체 실행을 책임지므로,
             # LangGraph의 AgentDecision에서는 Tool Call만 감지하고 ToolExecutor로 라우팅합니다.

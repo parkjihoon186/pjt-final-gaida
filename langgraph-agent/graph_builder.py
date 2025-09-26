@@ -17,6 +17,11 @@ from node import (
     agent_executor # AgentExecutor 초기화로 인해 임포트 필요
 ) 
 
+# FastAPI 및 관련 라이브러리 임포트
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+
 # ----------------------------------------------------
 # 1. Graph 정의 및 구축
 # ----------------------------------------------------
@@ -106,10 +111,58 @@ def visualize_graph(app, filename="langgraph_flow.png"):
     print("="*50 + "\n")
 
 
+# ----------------------------------------------------
+# 3. FastAPI 애플리케이션 정의
+# ----------------------------------------------------
+
+# LangGraph 앱을 전역적으로 한 번만 초기화하여 성능을 최적화합니다.
+langgraph_app = build_agent_graph()
+
+# Pydantic 모델로 요청 바디를 정의
+class AgentRequest(BaseModel):
+    """
+    API 요청에 사용될 데이터 모델.
+    """
+    question: str
+
+# FastAPI 앱 인스턴스 생성. 이 변수가 웹 서버의 진입점이 됩니다.
+fastapi_app = FastAPI(title="LangGraph Agent API")
+
+@fastapi_app.post("/invoke")
+async def invoke_agent_api(request: AgentRequest):
+    """
+    HTTP 요청을 받아 LangGraph 에이전트를 실행합니다.
+    """
+    # LangGraph의 입력 형식에 맞게 데이터를 준비합니다.
+    input_data = {
+        "question": request.question,
+        "messages": [HumanMessage(content=request.question)],
+        "loop_counter": 0,
+        "tool_outputs": [],
+        "intermediate_steps": []
+    }
+    
+    # LangGraph 앱을 동기적으로 호출합니다.
+    result = langgraph_app.invoke(input_data)
+    
+    # 최종 메시지만 추출하여 반환
+    final_message_content = result.get("messages", [AIMessage(content="결과 없음.")])[-1].content
+    
+    return {"result": final_message_content}
+
+
+
+# ----------------------------------------------------
+# 4. Local Test (기존 코드 유지)
+# ----------------------------------------------------
+
+
 if __name__ == "__main__":
+    # 이 블록은 스크립트를 직접 실행했을 때만 동작하며, 웹 서버와는 별개입니다.
+    # 기존의 로컬 테스트 및 시각화 로직을 그대로 유지합니다.
     
     # Graph 시각화 및 구조 점검
-    visualize_graph(app)
+    visualize_graph(langgraph_app)
     
     # 구조 확인 후, 최소 기능 통합 테스트 실행 (선택 사항)
     print("\n--- 최소 기능 Graph 실행 (테스트 입력) ---")
@@ -124,7 +177,7 @@ if __name__ == "__main__":
         }
         
         # 실제 데이터베이스 연결 및 LLM 호출이 발생합니다.
-        result = app.invoke(input_data)
+        result = langgraph_app.invoke(input_data)
         
         print("\n--- Graph 실행 결과 (최종 State) ---")
         # 최종 메시지만 깔끔하게 출력
