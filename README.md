@@ -10,6 +10,9 @@ Sesac GADA 과정 1기 최종프로젝트: **AI 기반 운동 및 식단 관리 
 
 본 프로젝트는 **이중 백엔드(Dual Backend)** 구조를 채택하여 웹 서비스와 AI 에이전트 기능을 분리하고 확장성을 확보했습니다.
 
+
+
+
 ```mermaid
 graph TD
     subgraph "User Layer"
@@ -49,6 +52,25 @@ graph TD
     B2 -->|"Tool Execution<br/>(Exercise Record Query/Add)"| DB
 ```
 
+```mermaid
+graph TD;
+        __start__([<p>__start__</p>]):::first
+        AgentDecision(AgentDecision)
+        ToolExecutor(ToolExecutor)
+        ResultProcessor(ResultProcessor)
+        ErrorHandler(ErrorHandler)
+        __end__([<p>__end__</p>]):::last
+        AgentDecision -.-> ErrorHandler;
+        AgentDecision -.-> ResultProcessor;
+        AgentDecision -.-> ToolExecutor;
+        ToolExecutor --> ResultProcessor;
+        __start__ --> AgentDecision;
+        ErrorHandler --> __end__;
+        ResultProcessor --> __end__;
+        classDef default fill:#f2f0ff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#bfb6fc
+```
 -   **Express.js (Node.js) 백엔드**: 프론트엔드의 메인 API 서버 역할을 합니다. AI 코칭, 전략 브리핑, 데이터베이스 프록시 기능을 수행합니다.
 -   **FastAPI (Python) 백엔드**: LangGraph 기반의 ReAct 에이전트를 API로 제공합니다. 복잡한 Tool-Calling 로직을 처리하여 사용자의 자연어 요청(예: "내 운동 기록 보여줘")을 수행합니다.
 
