@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스트랭스-회복 결정 트래커 V4</title>
+    <title>VS-ME</title>
     <!-- 외부 라이브러리 및 폰트 로드 -->
     <!-- Tailwind CSS: 유틸리티 기반 CSS 프레임워크 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -184,7 +184,7 @@
         <!-- 페이지 헤더 -->
         <header class="text-center py-8">
             <h1 class="text-4xl md:text-5xl font-extrabold text-gray-50">
-                스트랭스-회복 결정 트래커 V4
+                VS-ME
             </h1>
             <p class="mt-2 text-gray-400 text-lg font-bold">승리는 데이터에서 시작된다.</p>
             <div class="user-id-display">
@@ -282,9 +282,9 @@
                         <p id="empty-nutrition-message" class="text-center text-gray-500 py-4">영양 기록이 없습니다.</p>
                     </div>
                 </div>
-                 <!-- AI 영양 코치 챗봇 카드 -->
+                 <!-- AI 운동 코치 챗봇 카드 -->
                 <div class="card p-6">
-                    <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 영양 코치</h2>
+                    <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 운동 코치</h2>
                     <!-- 채팅 메시지가 표시될 영역 -->
                     <div id="chat-messages" class="bg-gray-900 rounded-lg">
                         <div class="chat-message ai-message">안녕하세요! 당신의 데이터를 기반으로 한 영양 질문에 답변해 드립니다.</div>
@@ -342,7 +342,7 @@
 
                 <!-- AI 훈련 분석 카드 -->
                 <div class="card p-6">
-                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 전략 브리핑</h2>
+                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI코치 피드백</h2>
                      <p class="text-gray-400 mb-4">버튼을 눌러 당신의 훈련 결과를 분석하고, 스트랭스와 회복에 대한 전략적 결정을 내립니다.</p>
                     <button id="analyze-btn" class="w-full btn-primary font-bold py-3 rounded-lg text-lg">훈련 분석!</button>
                     <!-- 분석 결과 피드백 표시 영역 -->
@@ -361,8 +361,8 @@
                 
                 <!-- AI 식단 분석 카드 -->
                 <div class="card p-6">
-                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 전략 식단 브리핑</h2>
-                     <p class="text-gray-400 mb-4">아래 버튼을 눌러 당신의 식단을 분석하고, 신체 정보에 기반한 개인 맞춤형 피드백을 받으세요.</p>
+                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 전략 브리핑</h2>
+                     <p class="text-gray-400 mb-4">아래 버튼을 눌러 당신의 식단과 운동 내역을 분석하고, 신체 정보에 기반한 개인 맞춤형 피드백을 받으세요.</p>
                     <button id="analyze-diet-btn" class="w-full btn-primary font-bold py-3 rounded-lg text-lg">식단 분석!</button>
                     <!-- 식단 분석 결과 피드백 표시 영역 -->
                     <div id="diet-feedback-container" class="mt-4">
