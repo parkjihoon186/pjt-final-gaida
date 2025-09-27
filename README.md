@@ -1,80 +1,115 @@
 # pjt-final-gaida
 
-Sesac GADA 과정 1기 최종프로젝트: **AI 기반 운동 및 식단 관리 애플리케이션**
-
 ## 🚀 프로젝트 소개
 
 `pjt-final-gaida`는 사용자의 운동 기록과 식단 데이터를 관리하고, AI 코치를 통해 개인화된 피드백과 전략을 제공하는 웹 애플리케이션입니다. 사용자는 자신의 운동 세션을 기록하고, '승리의 연대기' 차트를 통해 성장을 시각적으로 확인할 수 있으며, AI 에이전트와 대화하며 운동 기록을 조회하거나 추가할 수 있습니다.
 
-## 🏛️ 아키텍처
+## 🏛️ 아키텍처 (Architecture)
 
 본 프로젝트는 **이중 백엔드(Dual Backend)** 구조를 채택하여 웹 서비스와 AI 에이전트 기능을 분리하고 확장성을 확보했습니다.
 
-
-
-
-```mermaid
-graph TD
-    subgraph "User Layer"
-        U[Browser]
-    end
-    
-    subgraph "Frontend Layer"
-        FE["index.html<br/>Tailwind CSS, Chart.js"]
-    end
-    
-    subgraph "Backend Services"
-        B1["Express.js (Node.js)<br/>Web API Server"]
-        B2["FastAPI (Python)<br/>LangGraph Agent Server"]
-    end
-    
-    subgraph "AI Models"
-        GPT[OpenAI GPT]
-    end
-    
-    subgraph "Database Layer"
-        DB[("Supabase<br/>PostgreSQL")]
-    end
-    
-    %% User to Frontend
-    U --> FE
-    
-    %% Frontend to Backend Services
-    FE -->|"API Request<br/>(AI Coach, Data CRUD)"| B1
-    FE -->|"Agent API Request"| B2
-    
-    %% Backend to AI Models
-    B1 -->|"AI Analysis Request"| GPT
-    B2 -->|"Tool-Calling<br/>Intent Analysis"| GPT
-    
-    %% Backend to Database
-    B1 -->|"Data Proxy"| DB
-    B2 -->|"Tool Execution<br/>(Exercise Record Query/Add)"| DB
-```
-
-```mermaid
-graph TD;
-        __start__([<p>__start__</p>]):::first
-        AgentDecision(AgentDecision)
-        ToolExecutor(ToolExecutor)
-        ResultProcessor(ResultProcessor)
-        ErrorHandler(ErrorHandler)
-        __end__([<p>__end__</p>]):::last
-        AgentDecision -.-> ErrorHandler;
-        AgentDecision -.-> ResultProcessor;
-        AgentDecision -.-> ToolExecutor;
-        ToolExecutor --> ResultProcessor;
-        __start__ --> AgentDecision;
-        ErrorHandler --> __end__;
-        ResultProcessor --> __end__;
-        classDef default fill:#f2f0ff,line-height:1.2
-        classDef first fill-opacity:0
-        classDef last fill:#bfb6fc
-```
 -   **Express.js (Node.js) 백엔드**: 프론트엔드의 메인 API 서버 역할을 합니다. AI 코칭, 전략 브리핑, 데이터베이스 프록시 기능을 수행합니다.
 -   **FastAPI (Python) 백엔드**: LangGraph 기반의 ReAct 에이전트를 API로 제공합니다. 복잡한 Tool-Calling 로직을 처리하여 사용자의 자연어 요청(예: "내 운동 기록 보여줘")을 수행합니다.
 
-## 🛠️ 기술 스택
+```mermaid
+flowchart LR
+ subgraph subGraph0["User Layer"]
+        U@{ label: "👤 User's Browser" }
+  end
+ subgraph subGraph1["UI Libraries"]
+        T["Tailwind CSS"]
+        C["Chart.js"]
+  end
+ subgraph subGraph2["Frontend Layer (Client-Side)"]
+    direction TB
+        FE["index.html"]
+        PH["Placeholder Data Display"]
+        CUI["Chatting UI"]
+        subGraph1
+  end
+ subgraph subGraph3["Web API Server (server.js)"]
+        B1["Express.js"]
+        B1_Coach["/api/coach<br>(AI Coach & Strategy Briefing)"]
+        B1_CRUD["/api/sessions, /api/nutrition<br>(DB Proxy for Data Retrieval)"]
+  end
+ subgraph subGraph4["LangGraph Engine (node.py, state.py)"]
+        AD["AgentDecision Node"]
+        TE["ToolExecutor Node"]
+        RP["ResultProcessor Node"]
+  end
+ subgraph subGraph5["LangChain Framework Layer"]
+        AE["AgentExecutor<br>(Abstraction Layer)"]
+        AE_Features["• Prompt Management<br>• Tool Context Integration<br>• Conversation History<br>• LangChain Rules"]
+  end
+ subgraph subGraph6["LangGraph Agent Server (graph_builder.py)"]
+        B2["FastAPI"]
+        B2_Invoke["/invoke<br>(Agent Execution)"]
+        subGraph4
+        subGraph5
+        ST["supabase_tools.py<br>(DB Tool Functions)"]
+  end
+ subgraph subGraph7["Backend Services Layer"]
+    direction TB
+        subGraph3
+        subGraph6
+  end
+ subgraph subGraph8["External Services & Data Layer"]
+    direction TB
+        GPT["🧠 OpenAI GPT Model"]
+        DB[("🗃️ Supabase DB")]
+  end
+    FE --> PH & CUI
+    B1 --> B1_Coach & B1_CRUD
+    AD --> TE
+    TE --> RP & ST
+    AE -.-> AE_Features
+    B2 --> B2_Invoke
+    B2_Invoke --> AD
+    RP -- "agent_executor.agent.invoke()" --> AE
+    U --> FE
+    PH -- Direct Data Retrieval --> B1_CRUD
+    B1_CRUD -- Proxy Request --> DB
+    CUI -- Natural Language Input --> B2_Invoke
+    ST -- Tool Execution<br>(get_workout_history, add_workout_session) --> DB
+    B1_Coach -- "SystemPrompt + UserPrompt<br>+ Pre-retrieved Data" --> GPT
+    AD -- Decision Making --> GPT
+    AE -- Managed LLM Call<br>(with context & history) --> GPT
+    U@{ shape: rect}
+     U:::layer
+     FE:::layer
+     PH:::layer
+     CUI:::layer
+     B1:::layer
+     B1_Coach:::service
+     B1_CRUD:::service
+     AD:::layer
+     TE:::layer
+     RP:::layer
+     AE:::framework
+     AE_Features:::framework
+     B2:::layer
+     B2_Invoke:::service
+     ST:::layer
+     GPT:::external
+     DB:::external
+    classDef layer fill:#f2f0ff,stroke:#b695e5,stroke-width:2px
+    classDef service fill:#e6f7ff,stroke:#007bff,stroke-width:1px
+    classDef external fill:#d4edda,stroke:#155724,stroke-width:1px
+    classDef framework fill:#fff9e6,stroke:#ffa500,stroke-width:2px
+    classDef dataflow fill:#fff2e6,stroke:#ff8c00,stroke-width:2px
+    style T fill:#38bdf8,stroke:#fff,color:#fff
+    style C fill:#ff6384,stroke:#fff,color:#fff
+```
+
+## ✨ 주요 기능 (Key Features)
+
+-   **운동 및 식단 기록**: 양식을 통한 직접 입력 방식과, 채팅창에 메모를 붙여넣어 AI 에이전트에게 데이터 추가를 요청하는 자연어 기반 입력 방식을 모두 지원합니다.
+-   **AI 코칭 및 전략 브리핑**: 저장된 데이터를 기반으로 AI 코치가 개인화된 운동/식단 조언과 분석 리포트를 제공합니다.
+-   **자연어 상호작용**: LangGraph 기반 AI 에이전트와 대화(또는 음성)하여 "오늘 운동 뭐했지?"와 같이 자연어로 운동 기록을 조회하거나 추가할 수 있습니다.
+-   **성장 시각화**: Chart.js를 활용한 '승리의 연대기' 차트를 통해 운동 볼륨 등의 성장 과정을 시각적으로 추적합니다.
+-   **안전한 데이터 관리**: 모든 사용자 데이터는 Supabase 데이터베이스에 안전하게 저장되며, API 키 등 민감 정보는 서버에서 안전하게 관리됩니다.
+
+## 🛠️ 기술 스택 (Tech Stack)
 
 ### 프론트엔드
 *   **Tailwind CSS**: 반응형 디자인, 다크 모드 등 전체 UI 스타일링을 위한 유틸리티 우선 CSS 프레임워크.
@@ -89,26 +124,53 @@ graph TD;
     *   **주요 기능**: Tool-Calling, 자연어 기반 DB 상호작용.
 
 ### 데이터베이스
-*   **Supabase**: PostgreSQL 기반의 BaaS(Backend as a Service). 운동 및 식단 데이터 저장소로 사용되며, 두 백엔드에서 모두 접근합니다.
+*   **Supabase**: PostgreSQL 기반의 BaaS(Backend as a Service). 운동 및 식단 데이터 저장소로 사용됩니다.
 
 ### AI & 에이전트
-*   **GPT (OpenAI)**: 프로젝트의 핵심 LLM. Express 서버의 AI 코치 기능과 FastAPI 에이전트의 의도 분석 및 Tool-Calling 결정에 사용됩니다.
-    > 초기에는 전체 DB 내용을 컨텍스트로 전달하기 위해 Context Window가 큰 Gemini를 사용했으나, LangGraph를 도입하여 정교한 Tool-Calling이 가능해지면서 GPT로 전환했습니다.
+*   **GPT (OpenAI)**: AI 코치 기능과 에이전트의 의도 분석 및 Tool-Calling 결정에 사용되는 핵심 LLM.
 *   **LangGraph**: ReAct 패턴의 AI 에이전트를 구축하기 위한 프레임워크. `AgentDecision`, `ToolExecutor` 등의 노드를 정의하여 상태 기반의 자율적 에이전트를 구현합니다.
 *   **LangChain**: LangGraph의 기반 기술. LLM, Tool, Prompt를 유기적으로 결합하는 데 사용됩니다.
 
-### 계획 중인 기술
-*   **LangSmith**: 에이전트의 실행 과정을 추적, 디버깅, 평가하기 위한 플랫폼. 추후 도입하여 에이전트의 안정성과 성능을 높일 계획입니다.
+## 🏁 실행 방법 (Quick Start)
 
-## 🏁 실행 방법
+### 1. 환경 변수 설정
 
-### 1. 웹 애플리케이션 서버 (Express.js)
+프로젝트 루트 디렉토리에 `.env` 파일을 생성하고, 아래 내용을 각자의 키 값으로 채워주세요.
 
-프론트엔드와 메인 API를 실행합니다.
+```.env
+# OpenAI API Key
+OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
+
+# Supabase Credentials
+SUPABASE_URL="YOUR_SUPABASE_URL"
+SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
+```
+
+### 2. 백엔드 서버 실행
+
+본 프로젝트는 두 개의 백엔드 서버로 구성되어 있으며, 두 서버를 모두 실행해야 모든 기능이 정상적으로 동작합니다.
+
+#### A. LangGraph 에이전트 서버 (FastAPI)
 
 ```bash
-# server.js가 위치한 디렉토리로 이동
-cd /path/to/your/project/root
+# langgraph-agent 디렉토리로 이동
+cd langgraph-agent
+
+# (선택) Python 가상 환경 생성 및 활성화
+# python3 -m venv venv && source venv/bin/activate
+
+# 종속성 설치
+pip install -r requirements.txt
+
+# 서버 실행
+uvicorn graph_builder:fastapi_app --reload
+```
+
+#### B. 웹 애플리케이션 서버 (Express.js)
+
+```bash
+# web 디렉토리로 이동
+cd web
 
 # 종속성 설치
 npm install
@@ -117,17 +179,6 @@ npm install
 node server.js
 ```
 
-### 2. LangGraph 에이전트 서버 (FastAPI)
+### 3. 프론트엔드 접근
 
-Tool-Calling을 처리하는 AI 에이전트를 실행합니다.
-
-```bash
-# langgraph-agent 디렉토리로 이동
-cd /path/to/your/project/langgraph-agent
-
-# 종속성 설치
-pip install -r requirements.txt
-
-# 서버 실행
-uvicorn graph_builder:fastapi_app --reload
-```
+두 서버가 모두 실행된 후, 웹 브라우저를 열어 `http://localhost:3000` 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
