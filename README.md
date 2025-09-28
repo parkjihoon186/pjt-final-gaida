@@ -226,37 +226,42 @@ graph LR
 
 ```
 
-
-
 ## 🛠️ 기술 스택 (Tech Stack)
 
 ### 프론트엔드
-*   **Tailwind CSS**: 반응형 디자인, 다크 모드 등 전체 UI 스타일링을 위한 유틸리티 우선 CSS 프레임워크.
-*   **Chart.js**: '승리의 연대기' 기능에서 사용자의 운동 볼륨 변화를 시각화하는 차트 라이브러리.
+
+* **Tailwind CSS**: 전체 UI 스타일링을 위한 유틸리티 우선 CSS 프레임워크. 반응형 디자인과 일관된 레이아웃 제공.
+* **Chart.js**: 사용자의 기록 데이터를 기반으로 그래프 및 차트 시각화.
 
 ### 백엔드
-1.  **Express.js (Node.js)**
-    *   **역할**: 웹 애플리케이션의 메인 API 서버.
-    *   **주요 기능**: AI 코치(GPT 호출), Supabase 데이터 프록시.
-2.  **FastAPI (Python)**
-    *   **역할**: LangGraph 기반 ReAct 에이전트 API 서버.
-    *   **주요 기능**: Tool-Calling, 자연어 기반 DB 상호작용.
+
+1. **Express.js (Node.js)**
+   * **역할**: 웹 애플리케이션의 메인 API 서버.
+   * **주요 기능**: AI 코치 기능(GPT 호출), 데이터 요청 처리 및 Supabase 프록시.
+2. **FastAPI (Python)**
+   * **역할**: LangGraph 기반 ReAct 에이전트 API 서버.
+   * **주요 기능**: 자연어 질의 처리, Tool-Calling, 데이터베이스 상호작용.
 
 ### 데이터베이스
-*   **Supabase**: PostgreSQL 기반의 BaaS(Backend as a Service). 운동 및 식단 데이터 저장소로 사용됩니다.
+* **Supabase (PostgreSQL 기반)**: 사용자 운동/식단/기타 데이터 저장 및 관리. 백엔드 및 AI 에이전트에서 모두 접근 가능.
 
 ### AI & 에이전트
-*   **GPT (OpenAI)**: AI 코치 기능과 에이전트의 의도 분석 및 Tool-Calling 결정에 사용되는 핵심 LLM.
-*   **LangGraph**: ReAct 패턴의 AI 에이전트를 구축하기 위한 프레임워크. `AgentDecision`, `ToolExecutor` 등의 노드를 정의하여 상태 기반의 자율적 에이전트를 구현합니다.
-*   **LangChain**: LangGraph의 기반 기술. LLM, Tool, Prompt를 유기적으로 결합하는 데 사용됩니다.
+* **GPT (OpenAI)**: AI 코치 및 LangGraph 에이전트의 분석/피드백 생성.
+* **LangGraph**: ReAct 패턴 기반의 상태 기반 자율 에이전트 구축. `AgentDecision`, `ToolExecutor` 노드를 활용.
+* **LangChain**: LLM, Tool, Prompt 결합을 통한 LangGraph 에이전트 실행 기반 제공.
 
-## 🏁 실행 방법 (Quick Start)
+좋아요. 말씀하신 내용 반영해서 **Supabase DB 세팅 포함**, 순서 재정리된 **Quick Start** 전체를 Markdown 형식으로 작성했습니다.
+
+---
+
+## 🏁 Quick Start
+
 
 ### 1. 환경 변수 설정
 
 프로젝트 루트 디렉토리에 `.env` 파일을 생성하고, 아래 내용을 각자의 키 값으로 채워주세요.
 
-```.env
+```env
 # OpenAI API Key
 OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
 
@@ -265,9 +270,27 @@ SUPABASE_URL="YOUR_SUPABASE_URL"
 SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
 ```
 
-### 2. 백엔드 서버 실행
+---
 
-본 프로젝트는 두 개의 백엔드 서버로 구성되어 있으며, 두 서버를 모두 실행해야 모든 기능이 정상적으로 동작합니다.
+### 2. Supabase DB 세팅
+
+1. Supabase 프로젝트를 생성합니다.
+2. `.env` 파일에 Supabase URL과 Anon Key를 설정합니다 (아래 참조).
+3. `tablecreate.sql` 파일에 있는 쿼리를 Supabase SQL Editor 또는 CLI를 통해 실행하여 데이터베이스 스키마를 생성합니다.
+
+```bash
+# supabase CLI 예시
+supabase db connect
+psql "postgresql://<user>:<password>@<host>:<port>/<database>" -f tablecreate.sql
+```
+
+> **참고**: `tablecreate.sql`에는 운동, 식단, 세션 등 프로젝트에서 필요한 모든 테이블과 초기 구조가 정의되어 있습니다.
+
+---
+
+### 3. 백엔드 서버 실행
+
+본 프로젝트는 **두 개의 백엔드 서버**로 구성되어 있으며, 두 서버를 모두 실행해야 모든 기능이 정상적으로 동작합니다.
 
 #### A. LangGraph 에이전트 서버 (FastAPI)
 
@@ -298,9 +321,16 @@ npm install
 node server.js
 ```
 
-### 3. 프론트엔드 접근
+---
 
-두 서버가 모두 실행된 후, 웹 브라우저를 열어 `http://localhost:3000` 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
+### 4. 프론트엔드 접근
+
+두 서버가 모두 실행된 후, 웹 브라우저를 열어 아래 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
+
+```
+http://localhost:3000
+```
+
 
 ### Directory structure
 ```
