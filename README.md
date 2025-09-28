@@ -151,6 +151,81 @@ flowchart LR
     style C fill:#ff6384,stroke:#fff,color:#fff
 ```
 
+### data-flow
+
+```mermaid
+
+graph LR
+    subgraph "Input Data Types"
+        NLQ["Natural Language Query<br/>question: str"]
+        DIR["Direct Data Request<br/>user_id: text"]
+    end
+    
+    subgraph "Frontend Data Layer"
+        REQ_Direct["Direct Request<br/>{ user_id: text }"]
+        REQ_Agent["Agent Request<br/>{ question: str, user_id: text }"]
+    end
+    
+    subgraph "Backend Data Processing"
+        subgraph "Web API Flow"
+            WEB["Web API Processing<br/>SystemPrompt + UserPrompt + DB_Data"]
+        end
+        
+        subgraph "LangGraph State Flow"
+            STATE["State (TypedDict)<br/>• question: str<br/>• decision: AgentDecisionModel<br/>• tool_outputs: List[ToolMessage]<br/>• answer: str"]
+            
+            DECISION["AgentDecisionModel<br/>• action_type: Literal<br/>• tool_calls: List[dict]<br/>• final_answer: str"]
+            
+            TOOLS["Tool Parameters<br/>• user_id: text<br/>• date_filter?: str"]
+        end
+    end
+    
+    subgraph "Database Schema"
+        SESSIONS["sessions<br/>• id: bigint<br/>• user_id: text<br/>• total_volume: numeric<br/>• exercises: jsonb"]
+        
+        NUTRITION["nutrition<br/>• id: bigint<br/>• user_id: text<br/>• carbs: numeric<br/>• protein: numeric<br/>• fat: numeric"]
+    end
+    
+    subgraph "AI Processing"
+        GPT["GPT Model<br/>Input: structured prompts<br/>Output: text responses"]
+    end
+    
+    %% Styling
+    classDef input fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef frontend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef backend fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef database fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef ai fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    
+    %% Data Flow Connections
+    
+    %% Direct Flow
+    DIR --> REQ_Direct
+    REQ_Direct --> WEB
+    WEB --> SESSIONS
+    WEB --> NUTRITION
+    WEB --> GPT
+    
+    %% Agent Flow
+    NLQ --> REQ_Agent
+    REQ_Agent --> STATE
+    STATE --> DECISION
+    DECISION --> TOOLS
+    TOOLS --> SESSIONS
+    TOOLS --> NUTRITION
+    SESSIONS --> STATE
+    NUTRITION --> STATE
+    STATE --> GPT
+    
+    %% Apply Classes
+    class NLQ,DIR input
+    class REQ_Direct,REQ_Agent frontend
+    class WEB,STATE,DECISION,TOOLS backend
+    class SESSIONS,NUTRITION database
+    class GPT ai
+
+```
+
 
 
 ## 🛠️ 기술 스택 (Tech Stack)
@@ -226,3 +301,30 @@ node server.js
 ### 3. 프론트엔드 접근
 
 두 서버가 모두 실행된 후, 웹 브라우저를 열어 `http://localhost:3000` 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
+
+### Directory structure
+
+web
+.
+├── index.html
+├── node_modules
+├── package-lock.json
+├── package.json
+├── server.js
+└── tablecreate.sql
+
+langgraph-agent
+.
+├── graph_builder.py
+├── langgraph.ipynb
+├── langgraph.json
+├── langgraph.log
+├── llm-systemprompt.md
+├── node.py
+├── requirements.txt
+├── state.py
+├── supabase_tools.py
+├── test_decision_to_tool_flow.py
+├── test_node.py
+├── test_state.py
+└── test_supabase_tools.py
