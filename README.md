@@ -1,8 +1,58 @@
-# pjt-final-gaida
+# VS-ME
 
 ## 🚀 프로젝트 소개
 
-`pjt-final-gaida`는 사용자의 운동 기록과 식단 데이터를 관리하고, AI 코치를 통해 개인화된 피드백과 전략을 제공하는 웹 애플리케이션입니다. 사용자는 자신의 운동 세션을 기록하고, '승리의 연대기' 차트를 통해 성장을 시각적으로 확인할 수 있으며, AI 에이전트와 대화하며 운동 기록을 조회하거나 추가할 수 있습니다.
+VS-ME는 정체기를 극복하고 자신의 수행능력을 키워가고 싶은 개인을 위한 플랫폼입니다.
+운동·식단뿐만 아니라 수면, 영양제 등 사용자가 원하는 데이터를 자유롭게 기록할 수 있으며, AI는 이를 바탕으로 신뢰성 있는 성장 피드백을 제공합니다.
+
+
+### 핵심 가치
+- 데이터 기록 유연성
+      - 운동, 식단뿐만 아니라 개인이 원하는 모든 항목(예: 수면, 영양제, 컨디션)을 jsonb 형식으로 저장 가능
+      - 개인화된 데이터 스키마를 강제하지 않고, 사용자가 원하는 만큼 확장 가능
+- AI 기반 분석 보고서와 실시간 조언
+      - LangGraph 기반 에이전트가 자연어 요청(NLQ)을 이해하고 적절한 Tool을 호출
+      - GPT 모델이 단순 요약이 아니라, 개인의 누적 데이터를 바탕으로 신뢰성 높은 전략적 피드백 제공
+- 단기적 /장기적 성장 별도 분석 전략
+      - Chart.js 기반의 운동별 분석 시각화와 리포트를 통해 단기적인 성과와 장기적인 성장을 동시에 관리
+
+### ✨ 핵심 기능
+- AI 코치 기능 (실시간)
+      - LangGraph 기반으로 DB에서 필요한 데이터만 가져와 응답
+      - 운동/식단/수면/영양제 등 유연한 데이터 입력 지원
+      - 자연어 기반 개인 맞춤 조언 제공   
+- AI 분석 기능 (비실시간)
+      - LLM이 사용자의 모든 데이터를 직접 분석
+      - 개인화 보고서 생성 및 성장 전략 제안
+- 데이터 시각화
+      - “승리의 연대기” 차트를 통해 수행능력 변화 추적
+
+### 📊 우리의 Positioning
+
+- 우리 서비스의 포지션은 **“즉각성보다 타당성, 기록 편의성보다 콘텐츠 다양성”**입니다.
+
+```mermaid
+quadrantChart
+    title Service Positioning Matrix
+    x-axis Immediacy --> Analytical_Rigor
+    y-axis Recording_Convenience --> Content_Diversity
+    
+    "우리 서비스": [0.9, 0.8]
+    "GPT": [0.25, 0.9]
+    "메모 앱": [0.15, 0.2]
+    "노션": [0.35, 0.4]
+    "헬스장 PT": [0.75, 0.25]
+```
+
+
+- 즉, GPT는 빠르고 즉각적인 응답에 강점이 있는 반면,
+- 우리 서비스는 충분한 데이터를 모으고 분석하여 개인의 성장에 타당한 인사이트를 제공하는 데 집중합니다.
+
+### ⚠️ UX 관점
+- 우리 서비스의 UI는 직관적이거나 단순하지 않습니다.
+- 그러나 이는 단순 기록 도구가 아니라, 성장 지향적 분석 플랫폼이라는 포지션을 강화합니다.
+
+👉 요약하자면, **“내가 넣고 싶은 모든 데이터를 기반으로, GPT가 주지 못하는 타당성 있는 성장 피드백을 주는 서비스”**입니다.
 
 ## 🏛️ 아키텍처 (Architecture)
 
@@ -101,13 +151,82 @@ flowchart LR
     style C fill:#ff6384,stroke:#fff,color:#fff
 ```
 
-## ✨ 주요 기능 (Key Features)
+### data-flow
 
--   **운동 및 식단 기록**: 양식을 통한 직접 입력 방식과, 채팅창에 메모를 붙여넣어 AI 에이전트에게 데이터 추가를 요청하는 자연어 기반 입력 방식을 모두 지원합니다.
--   **AI 코칭 및 전략 브리핑**: 저장된 데이터를 기반으로 AI 코치가 개인화된 운동/식단 조언과 분석 리포트를 제공합니다.
--   **자연어 상호작용**: LangGraph 기반 AI 에이전트와 대화(또는 음성)하여 "오늘 운동 뭐했지?"와 같이 자연어로 운동 기록을 조회하거나 추가할 수 있습니다.
--   **성장 시각화**: Chart.js를 활용한 '승리의 연대기' 차트를 통해 운동 볼륨 등의 성장 과정을 시각적으로 추적합니다.
--   **안전한 데이터 관리**: 모든 사용자 데이터는 Supabase 데이터베이스에 안전하게 저장되며, API 키 등 민감 정보는 서버에서 안전하게 관리됩니다.
+```mermaid
+
+graph LR
+    subgraph "Input Data Types"
+        NLQ["Natural Language Query<br/>question: str"]
+        DIR["Direct Data Request<br/>user_id: text"]
+    end
+    
+    subgraph "Frontend Data Layer"
+        REQ_Direct["Direct Request<br/>{ user_id: text }"]
+        REQ_Agent["Agent Request<br/>{ question: str, user_id: text }"]
+    end
+    
+    subgraph "Backend Data Processing"
+        subgraph "Web API Flow"
+            WEB["Web API Processing<br/>SystemPrompt + UserPrompt + DB_Data"]
+        end
+        
+        subgraph "LangGraph State Flow"
+            STATE["State (TypedDict)<br/>• question: str<br/>• decision: AgentDecisionModel<br/>• tool_outputs: List[ToolMessage]<br/>• answer: str"]
+            
+            DECISION["AgentDecisionModel<br/>• action_type: Literal<br/>• tool_calls: List[dict]<br/>• final_answer: str"]
+            
+            TOOLS["Tool Parameters<br/>• user_id: text<br/>• date_filter?: str"]
+        end
+    end
+    
+    subgraph "Database Schema"
+        SESSIONS["sessions<br/>• id: bigint<br/>• user_id: text<br/>• total_volume: numeric<br/>• exercises: jsonb"]
+        
+        NUTRITION["nutrition<br/>• id: bigint<br/>• user_id: text<br/>• carbs: numeric<br/>• protein: numeric<br/>• fat: numeric"]
+    end
+    
+    subgraph "AI Processing"
+        GPT["GPT Model<br/>Input: structured prompts<br/>Output: text responses"]
+    end
+    
+    %% Styling
+    classDef input fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef frontend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef backend fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    classDef database fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef ai fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    
+    %% Data Flow Connections
+    
+    %% Direct Flow
+    DIR --> REQ_Direct
+    REQ_Direct --> WEB
+    WEB --> SESSIONS
+    WEB --> NUTRITION
+    WEB --> GPT
+    
+    %% Agent Flow
+    NLQ --> REQ_Agent
+    REQ_Agent --> STATE
+    STATE --> DECISION
+    DECISION --> TOOLS
+    TOOLS --> SESSIONS
+    TOOLS --> NUTRITION
+    SESSIONS --> STATE
+    NUTRITION --> STATE
+    STATE --> GPT
+    
+    %% Apply Classes
+    class NLQ,DIR input
+    class REQ_Direct,REQ_Agent frontend
+    class WEB,STATE,DECISION,TOOLS backend
+    class SESSIONS,NUTRITION database
+    class GPT ai
+
+```
+
+
 
 ## 🛠️ 기술 스택 (Tech Stack)
 
@@ -182,3 +301,32 @@ node server.js
 ### 3. 프론트엔드 접근
 
 두 서버가 모두 실행된 후, 웹 브라우저를 열어 `http://localhost:3000` 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
+
+### Directory structure
+```
+web
+.
+├── index.html
+├── node_modules
+├── package-lock.json
+├── package.json
+├── server.js
+└── tablecreate.sql
+
+langgraph-agent
+.
+├── graph_builder.py
+├── langgraph.ipynb
+├── langgraph.json
+├── langgraph.log
+├── llm-systemprompt.md
+├── node.py
+├── requirements.txt
+├── state.py
+├── supabase_tools.py
+├── test_decision_to_tool_flow.py
+├── test_node.py
+├── test_state.py
+└── test_supabase_tools.py
+```
+
