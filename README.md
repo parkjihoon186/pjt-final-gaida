@@ -303,7 +303,7 @@ node server.js
 두 서버가 모두 실행된 후, 웹 브라우저를 열어 `http://localhost:3000` 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
 
 ### Directory structure
-
+```
 web
 .
 ├── index.html
@@ -328,3 +328,5 @@ langgraph-agent
 ├── test_node.py
 ├── test_state.py
 └── test_supabase_tools.py
+```
+
