@@ -72,7 +72,7 @@
 - [ ] **프로젝트 구조 재구성** (진행 중)
     - [x] `langgraph-agent` 디렉토리 이름을 `backend`로 변경
     - [x] `web` 디렉토리 이름을 `frontend`로 변경하고 `backend` 디렉토리 하위로 이동
-    - [ ] `tablecreate.sql` 등 공용 파일을 `backend/database` 등으로 이동
+    - [x] `tablecreate.sql` 등 공용 파일을 `backend/database` 등으로 이동
 
 - [ ] **불필요한 파일 및 종속성 제거**
     - [ ] `frontend/server.js`, `frontend/package.json` 등 Node.js 관련 파일 모두 삭제

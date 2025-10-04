@@ -31,13 +31,6 @@
 
 ### 2.1. [Phase 1] Express 기능 FastAPI로 이전
 
-
-지금 단계에서는 **Task에 추가하는 것이 안전하고 권장**돼요. 이유는 단순히 무시하면 개발 환경에서 문제가 바로 드러날 수 있기 때문입니다. 각 항목을 Task에 넣으면 나중에 테스트 단계에서 발생할 수 있는 혼란을 미리 방지할 수 있어요.
-
-### 제안된 Task 반영 예시
-
-**[Phase 1] Express 기능 FastAPI로 이전** 하위에 추가:
-
 - [x] **CORS 설정**
   * `fastapi.middleware.cors.CORSMiddleware`를 사용하여 프론트엔드 주소(`http://localhost:3000`)에서의 요청 허용
 - [x] **환경 변수 로딩**
@@ -59,9 +52,9 @@
 
 ### 2.2. [Phase 2] 프론트엔드 연결 및 통합 테스트
 
-- [ ] **프론트엔드 API 요청 주소 변경**
-    - [ ] `web/index.html`의 모든 `fetch` 요청 URL을 FastAPI 서버 주소(예: `/api/...`)로 수정
-    - [ ] 기존 LangGraph 에이전트 호출(`/invoke`) 주소도 상대 경로로 변경
+- [x] **프론트엔드 API 요청 주소 변경**
+    - [x] `web/index.html`의 모든 `fetch` 요청 URL을 FastAPI 서버 주소(예: `/api/...`)로 수정
+    - [x] 기존 LangGraph 에이전트 호출(`/invoke`) 주소도 상대 경로로 변경
 
 - [x] **통합 테스트**
     - [x] FastAPI 서버만 실행한 상태에서 프론트엔드 접속 (`http://localhost:8000`)
@@ -69,15 +62,15 @@
 
 ### 2.3. [Phase 3] 프로젝트 구조 정리 및 문서화
 
-- [ ] **프로젝트 구조 재구성**
-    - [ ] `langgraph-agent` 디렉토리 이름을 `backend`로 변경
-    - [ ] `web` 디렉토리 이름을 `frontend`로 변경하고 `backend` 디렉토리 하위로 이동
-    - [ ] `tablecreate.sql` 등 공용 파일을 루트나 `backend/database` 등으로 이동
+- [x] **프로젝트 구조 재구성**
+    - [x] `langgraph-agent` 디렉토리 이름을 `backend`로 변경
+    - [x] `web` 디렉토리 이름을 `frontend`로 변경하고 `backend` 디렉토리 하위로 이동
+    - [x] `tablecreate.sql` 등 공용 파일을 루트나 `backend/database` 등으로 이동
 
-- [ ] **불필요한 파일 및 종속성 제거**
-    - [ ] `frontend/server.js`, `frontend/package.json` 등 Node.js 관련 파일 모두 삭제
-    - [ ] `.env` 파일에서 불필요한 변수 정리
+- [x] **불필요한 파일 및 종속성 제거**
+    - [x] `frontend/server.js`, `frontend/package.json` 등 Node.js 관련 파일 모두 삭제
+    - [x] `.env` 파일에서 불필요한 변수 정리 (완료)
 
-- [ ] **문서 업데이트**
-    - [ ] `README.md`의 아키텍처 다이어그램을 단일 FastAPI 서버 구조로 수정
-    - [ ] `README.md`의 `Quick Start` 가이드를 단일 FastAPI 서버 실행 방법으로 수정
+- [x] **문서 업데이트**
+    - [x] `README.md`의 아키텍처 다이어그램을 단일 FastAPI 서버 구조로 수정 (완료)
+    - [x] `README.md`의 `Quick Start` 가이드를 단일 FastAPI 서버 실행 방법으로 수정

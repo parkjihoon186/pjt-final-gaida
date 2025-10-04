@@ -443,32 +443,38 @@ psql "postgresql://<user>:<password>@<host>:<port>/<database>" -f tablecreate.sq
 
 ---
 
-### 3. 백엔드 서버 실행
+### 3. 통합 서버 실행 (Backend + Frontend)
 
-본 프로젝트는 **두 개의 백엔드 서버**로 구성되어 있으며, 두 서버를 모두 실행해야 모든 기능이 정상적으로 동작합니다.
+본 프로젝트는 단일 FastAPI 서버로 모든 기능(백엔드 API, 프론트엔드 UI)을 제공합니다.
 
-#### A. LangGraph 에이전트 서버 (FastAPI)
+1.  **`backend` 디렉토리로 이동합니다.**
+    ```bash
+    cd backend
+    ```
 
-```bash
-# langgraph-agent 디렉토리로 이동
-cd langgraph-agent
+2.  **Python 가상 환경을 생성하고 활성화합니다.**
+    ```bash
+    # (macOS/Linux)
+    python3 -m venv .venv
+    source .venv/bin/activate
+    ```
 
-# (선택) Python 가상 환경 생성 및 활성화
-# python3 -m venv venv && source venv/bin/activate
+3.  **필요한 종속성을 설치합니다.**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-# 종속성 설치
-pip install -r requirements.txt
-
-# 서버 실행
-uvicorn graph_builder:fastapi_app --reload
-```
+4.  **통합 서버를 실행합니다.**
+    ```bash
+    uvicorn graph_builder:fastapi_app --reload
+    ```
 
 
 ---
 
 ### 4. 프론트엔드 접근
 
-두 서버가 모두 실행된 후, 웹 브라우저를 열어 아래 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
+서버가 실행된 후, 웹 브라우저를 열어 아래 주소로 접속하면 애플리케이션을 사용할 수 있습니다.
 
 ```
 http://localhost:3000

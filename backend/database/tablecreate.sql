@@ -3,7 +3,7 @@ create table public.sessions (
   user_id text not null,
   created_at timestamp with time zone not null default timezone ('utc'::text, now()),
   total_volume numeric not null,
-  exercises jsonb null,
+  etc jsonb null,
   constraint sessions_pkey primary key (id)
 ) TABLESPACE pg_default;
 create table public.nutrition (
@@ -18,4 +18,3 @@ create table public.nutrition (
   glutamine numeric null,
   constraint nutrition_pkey primary key (id)
 ) TABLESPACE pg_default
-

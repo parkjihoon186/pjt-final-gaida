@@ -15,7 +15,7 @@ from supabase_tools import supabase
 # Pydantic 모델 정의 (server.js의 body 파싱 로직 참고)
 class SessionData(BaseModel):
     total_volume: float
-    exercises: Dict[str, Any] | List[Any] # JSON 객체/배열을 직접 받도록 수정
+    etc: Dict[str, Any] | List[Any] # 필드명을 'etc'로 변경하여 DB 컬럼과 일치시킵니다.
 
 class NutritionData(BaseModel):
     # meal_date는 DB에 없으므로 제거. created_at이 자동으로 생성됨.
@@ -60,7 +60,7 @@ async def post_session(data: SessionData, x_user_id: Optional[str] = Header(None
         insert_data = {
             "user_id": x_user_id,
             "total_volume": data.total_volume,
-            "etc": data.exercises # DB 컬럼명 'etc'와 일치하도록 수정
+            "etc": data.etc
         }
         response = supabase.from_("sessions").insert(insert_data).execute()
         return Response(status_code=201) # 201 Created

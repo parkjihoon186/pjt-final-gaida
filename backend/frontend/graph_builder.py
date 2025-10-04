@@ -139,14 +139,10 @@ fastapi_app = FastAPI(title="VS-ME Unified Backend API")
 # CORS 미들웨어 추가
 fastapi_app.add_middleware(
     CORSMiddleware,
-    # 개발 중에는 다른 포트에서의 접근을 허용하고, 통합 후에는 동일 출처만 허용
-    allow_origins=[
-        "http://localhost:3000", # 이전 Express 서버 주소 (개발/테스트용)
-        "http://localhost:8000", # 통합 후 FastAPI 서버 주소
-    ],
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://localhost:3000").split(','),
     allow_credentials=True,
-    allow_methods=["*"],  # 모든 HTTP 메소드 허용
-    allow_headers=["*"],  # 모든 HTTP 헤더 허용
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # LangGraph 에이전트 라우터 생성
@@ -181,12 +177,14 @@ async def invoke_agent_api(request: AgentRequest):
 # 루트 경로(/) 요청 시 index.html 반환
 @fastapi_app.get("/")
 async def read_index():
-    # frontend 디렉토리의 index.html을 반환합니다.
-    return FileResponse('./frontend/index.html')
+    # 현재 파일 위치를 기준으로 안정적인 절대 경로를 생성합니다.
+    FRONTEND_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend", "index.html")
+    return FileResponse(FRONTEND_FILE_PATH)
 
 # 정적 파일 서빙 (CSS, JS, 이미지 등)
-# ./frontend 경로를 / 경로에 마운트합니다.
-fastapi_app.mount("/", StaticFiles(directory="./frontend"), name="static")
+# 현재 파일 위치를 기준으로 안정적인 절대 경로를 생성하여 / 경로에 마운트합니다.
+STATIC_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
+fastapi_app.mount("/", StaticFiles(directory=STATIC_FILES_DIR), name="static")
 
 # 에이전트 라우터를 메인 앱에 포함 (prefix를 사용할 경우)
 # fastapi_app.include_router(agent_router, prefix="/agent")
