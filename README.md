@@ -75,8 +75,12 @@ quadrantChart
   * Row Level Security(RLS) 정책을 통해 사용자별 데이터 접근 제어
 
 
+### 아키텍처 특징
+- **직접 연결**: 프론트엔드에서 `/api/agent/invoke` 엔드포인트로 직접 LangGraph 호출
+- **상태 관리**: TypedDict 기반 State로 대화 컨텍스트 유지
+- **도구 기반 추론**: Supabase Tools를 활용한 데이터 기반 의사결정
 
-### data-flow
+## data-flow
 
 #### total-data-flow
 ```mermaid
@@ -273,8 +277,7 @@ graph LR
     class GPT ai
     class RESPONSE output
 ```
-#### Agent-Flow
-## Agent Flow (LangGraph 기반 AI 에이전트)
+#### Agent-Flow (LangGraph 기반 AI 에이전트)
 
 ### 처리 단계
 - **Input → Frontend → FastAPI Router → LangGraph State Management → Agent Decision → Tool Execution → Database**
@@ -284,11 +287,7 @@ graph LR
   - 2차+ 호출: Tool 실행 결과를 바탕으로 추가 분석 필요 시
   - 최종 호출: ResultProcessor에서 모든 정보를 종합하여 최종 답변 생성
 
-### 아키텍처 특징
-- **FastAPI 서버**: FastAPI가 모든 요청 처리
-- **직접 연결**: 프론트엔드에서 `/api/agent/invoke` 엔드포인트로 직접 LangGraph 호출
-- **상태 관리**: TypedDict 기반 State로 대화 컨텍스트 유지
-- **도구 기반 추론**: Supabase Tools를 활용한 데이터 기반 의사결정
+
 ```mermaid
 graph LR
     subgraph Input["Input Layer"]
@@ -481,29 +480,25 @@ http://localhost:3000
 ```
 
 
-### Directory structure (Before version)
+### Directory structure 
 ```
-web
 .
-├── index.html
-├── node_modules
-├── package-lock.json
-├── package.json
-├── server.js
-└── tablecreate.sql
-
-langgraph-agent
-.
+├── api_router.py
+├── database
+│   └── tablecreate.sql
+├── frontend
+│   ├── api_router.py
+│   ├── graph_builder.py
+│   ├── index.html
+│   └── update-plan.md
 ├── graph_builder.py
 ├── langgraph.ipynb
-├── langgraph.json
-├── langgraph.log
-├── llm-systemprompt.md
 ├── node.py
 ├── requirements.txt
 ├── state.py
 ├── supabase_tools.py
 ├── test_decision_to_tool_flow.py
+├── test_langgraph.py
 ├── test_node.py
 ├── test_state.py
 └── test_supabase_tools.py
