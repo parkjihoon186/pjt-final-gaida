@@ -82,7 +82,7 @@ quadrantChart
 
 ## data-flow
 
-#### total-data-flow
+#### Total-data-flow
 ```mermaid
 graph LR
     subgraph Input["Input Layer"]
@@ -277,6 +277,7 @@ graph LR
     class GPT ai
     class RESPONSE output
 ```
+
 #### Agent-Flow (LangGraph 기반 AI 에이전트)
 
 ### 처리 단계
