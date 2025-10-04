@@ -287,7 +287,7 @@
                     <h2 class="text-2xl font-bold mb-4 text-gray-50">AI 운동 코치</h2>
                     <!-- 채팅 메시지가 표시될 영역 -->
                     <div id="chat-messages" class="bg-gray-900 rounded-lg">
-                        <div class="chat-message ai-message">안녕하세요! 당신의 데이터를 기반으로 한 영양 질문에 답변해 드립니다.</div>
+                        <div class="chat-message ai-message">안녕하세요! 당신의 데이터를 기반으로 답변해 드립니다.</div>
                     </div>
                     <!-- 메시지 입력 및 전송 영역 -->
                     <div class="chat-input-container">
@@ -579,9 +579,11 @@
                 carbs: parseFloat(ui.carbsInput.value) || 0,
                 protein: parseFloat(ui.proteinInput.value) || 0,
                 fat: parseFloat(ui.fatInput.value) || 0,
-                bcaa: parseFloat(ui.bcaaInput.value) || 0,
-                creatine: parseFloat(ui.creatineInput.value) || 0,
-                glutamine: parseFloat(ui.glutamineInput.value) || 0,
+                extra_nutrients: {
+                    bcaa: parseFloat(ui.bcaaInput.value) || 0,
+                    creatine: parseFloat(ui.creatineInput.value) || 0,
+                    glutamine: parseFloat(ui.glutamineInput.value) || 0,
+                }
             };
 
             if (nutritionData.protein <= 0 && nutritionData.carbs <= 0 && nutritionData.fat <= 0) {
@@ -658,7 +660,7 @@
                 const item = document.createElement('div');
                 item.className = 'flex flex-col bg-gray-900 p-3 rounded-lg border border-gray-700';
                 const date = session.created_at ? new Date(session.created_at).toLocaleDateString() : '날짜 미상';
-                let exercisesHtml = session.exercises.map(ex => `<p class="text-xs text-gray-500">- ${ex.name}: ${ex.weight}kg x ${ex.reps}회 x ${ex.sets}세트</p>`).join('');
+                let exercisesHtml = (session.etc || []).map(ex => `<p class="text-xs text-gray-500">- ${ex.name}: ${ex.weight}kg x ${ex.reps}회 x ${ex.sets}세트</p>`).join('');
                 item.innerHTML = `
                     <div class="flex justify-between items-center font-bold text-gray-200"> <p>${date}</p> <p class="text-sm volume-color">${session.total_volume.toLocaleString()}kg</p> </div>
                     <div class="mt-2 text-sm text-gray-300">${exercisesHtml}</div>`;
@@ -747,7 +749,7 @@
         
         // 기록된 운동 목록을 기반으로 차트 필터 옵션 동적 업데이트
         function updateExerciseFilter() {
-            const exerciseNames = new Set(allSessions.flatMap(s => s.exercises.map(e => e.name)));
+            const exerciseNames = new Set(allSessions.flatMap(s => (s.etc || []).map(e => e.name)));
             const currentOptions = new Set([...ui.exerciseFilter.options].map(o => o.value));
             exerciseNames.forEach(name => {
                 if (!currentOptions.has(name)) {
@@ -766,7 +768,7 @@
             if (filter === 'total') {
                 chartData = sortedSessions.map(d => d.total_volume);
             } else {
-                chartData = sortedSessions.map(session => session.exercises.filter(ex => ex.name === filter).reduce((sum, ex) => sum + (ex.weight * ex.reps * ex.sets), 0));
+                chartData = sortedSessions.map(session => (session.etc || []).filter(ex => ex.name === filter).reduce((sum, ex) => sum + (ex.weight * ex.reps * ex.sets), 0));
             }
             progressChart.data.labels = sortedSessions.map(d => d.created_at ? new Date(d.created_at).toLocaleDateString() : '미상');
             progressChart.data.datasets[0].data = chartData;
@@ -781,15 +783,15 @@
             }
             const latest = sortedSessions[0];
             const previous = sortedSessions[1];
-            const allExerciseNames = new Set([...latest.exercises.map(e => e.name), ...previous.exercises.map(e => e.name)]);
+            const allExerciseNames = new Set([...(latest.etc || []).map(e => e.name), ...(previous.etc || []).map(e => e.name)]);
             let comparisonHtml = `<div class="grid grid-cols-2 gap-4 text-center mb-4">
                 <div><p class="font-bold">${new Date(latest.created_at).toLocaleDateString()} (최신)</p><p class="text-sm volume-color">${latest.total_volume.toLocaleString()}kg</p></div>
                 <div><p class="font-bold">${new Date(previous.created_at).toLocaleDateString()} (이전)</p><p class="text-sm text-gray-400">${previous.total_volume.toLocaleString()}kg</p></div>
             </div>`;
 
             allExerciseNames.forEach(name => {
-                const latestEx = latest.exercises.find(e => e.name === name);
-                const prevEx = previous.exercises.find(e => e.name === name);
+                const latestEx = (latest.etc || []).find(e => e.name === name);
+                const prevEx = (previous.etc || []).find(e => e.name === name);
                 const latestVol = latestEx ? latestEx.weight * latestEx.reps * latestEx.sets : 0;
                 const prevVol = prevEx ? prevEx.weight * prevEx.reps * prevEx.sets : 0;
                 let arrow = (latestVol > prevVol) ? `<span class="arrow-up text-lg">▲</span>` : (latestVol < prevVol) ? `<span class="arrow-down text-lg">▼</span>` : `<span class="text-gray-500 text-lg">=</span>`;
@@ -902,14 +904,12 @@
             const recCarbs = Math.round((tdee - (recProtein * 4) - (recFat * 9)) / 4);
             const loggedCalories = (latestNutrition.carbs * 4) + (latestNutrition.protein * 4) + (latestNutrition.fat * 9);
 
-            // Gemini API에 전달할 프롬프트 구성
-            const systemPrompt = `당신은 전문 운동코치입니다. 제공된 사용자 데이터와 계산된 영양 정보를 바탕으로, 상세하고 실행 가능한 식단 분석 리포트를 한국어로 작성해주세요. 리포트는 다음 항목을 포함해야 합니다:
+            // LLM-API에 전달할 프롬프트 구성
+            const systemPrompt = `당신은 전문 코치입니다. 제공된 사용자 데이터와 리포트는 다음 항목을 포함해야 합니다:
 1.  **총평**: 현재 섭취량과 권장 섭취량을 비교하여 긍정적이고 격려하는 톤으로 전반적인 평가를 내립니다.
 2.  **구체적인 조언**: 분석 결과를 바탕으로, 사용자가 다음 식사나 다음 날 식단에서 개선할 수 있는 구체적인 행동 지침을 2-3가지 제안합니다. (예: "단백질이 부족하니 다음 식사에 닭가슴살 100g을 추가해보세요.")
 3.  **형식**: 마크다운을 사용하여 제목, 목록 등을 보기 좋게 구성해주세요.
 4.  **강조 표시**: 섭취량이 권장량에 비해 '부족'한 경우, 해당 수치나 설명을 \`@@RED@@부족한 부분@@/RED@@\`으로 감싸주세요. 섭취량이 적절하거나 초과한 경우에는 이 표시를 사용하지 마세요.`;
-<!--**상세 분석**: 탄수화물, 단백질, 지방 섭취량을 각각 권장량과 비교하여 분석하고, 각 영양소의 역할과 중요성을 간단히 설명합니다. -->
-
             const context = `### 분석 데이터
 - **사용자 프로필**: 나이 ${age}세, 성별 ${gender}, 키 ${height}cm, 체중 ${weight}kg, 활동 수준 ${activityLevel}
 - **계산된 권장 섭취량**:
@@ -929,22 +929,20 @@
 위 데이터를 바탕으로 식단 분석 리포트를 작성해주세요.`;
 
             try {
-                const payload = {
-                    contents: [{ parts: [{ text: context }] }],
-                    systemInstruction: { parts: [{ text: systemPrompt }] },
-                };
-
-                const response = await fetch('/api/gemini', {
+                // FastAPI의 /api/coach 엔드포인트로 변경
+                const response = await fetch('/api/coach', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // 서버로 보낼 때는 payload 객체로 한번 감싸줍니다.
-                    body: JSON.stringify({ payload })
+                    body: JSON.stringify({
+                        system_prompt: systemPrompt,
+                        user_prompt: context
+                    })
                 });
 
                 if (!response.ok) throw new Error(`API 요청 실패: ${response.status}`);
 
                 const result = await response.json();
-                const feedback = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                const feedback = result.advice; // 응답 구조 변경: result.advice
 
                 if (feedback) {
                     // 마크다운 및 커스텀 태그를 HTML로 변환하여 표시
@@ -1034,39 +1032,28 @@
                 context += "  - 기록 없음\n";
             }
             
-            const systemPrompt = `스파르타 코치이자 세계적인 영양코치다. 너는 사용자의 훈련 기록을 분석하여, 그들의 성장을 칭찬하거나, 나태함을 질책한다. 너의 목표는 사용자가 한계를 넘어서도록 동기를 부여하는 것이다.
-- 마지막 훈련 세션의 총 볼륨이 이전 세션보다 높으면, 그 성과를 인정하되, 자만하지 말라고 경고하라. (예: "과거의 나를 이겼군! 하지만 이건 시작에 불과하다!")
-- 볼륨이 낮아졌다면, 패배를 인정하고 다음 전투를 준비하라고 엄격하게 조언하라. (예: "오늘은 졌지만, 이 패배에서 배워라. 쉬는 것도 훈련이다.")
-- 볼륨이 같다면, 정체는 후퇴와 같다고 경고하며 새로운 자극을 찾으라고 명령하라. (예: "제자리걸음은 후퇴다! 다음엔 무게를 올리거나, 세트 수를 늘려라!")
-- 훈련 성과가 부진할 경우(볼륨 정체 또는 감소), 단백질 섭취 부족 등 필수 영양 문제의 원인을 꼼꼼히 찾아 지적하고 영양 기록을 점검하라고 명령할 수 있다. 사용자가 먹은 필수 영양소가 권장량 기준에 비해 낮을 시, 해당 영양소 부분에 \`[WARNING]\`과 \`[/WARNING]\` 태그를 반드시 붙여라. (예: \`[WARNING]단백질 섭취량이 부족하다.[/WARNING]\`)
-- 분석은 항상 짧고 강력한 총평으로 시작하고, 그 뒤에 구체적인 조언을 1~2가지 제공하라. 제시한 영양 관련 조언을 사용자가 계속 무시하는 패턴이 데이터상으로 보일 경우, "경고: 현재 영양 상태로는 근육 성장에 부적합하다." 라는 메시지를 출력하라.
-- 말투는 단호해야 하며, 반드시 주어진 사용자의 데이터에만 근거하여 분석하고 조언해야 한다. 주어진 데이터에 없는 내용은 절대로 추측하거나 배경지식을 활용해 말하지 마라. 🔥, 💪, 🏋️ 이모지를 사용하라.`;
+            const systemPrompt = `너는 사용자의 기록을 분석하여, 주어진 사용자의 데이터에만 근거하여 분석하여 사용자를 돕고 짧고 간결하게 말하라. 🔥, 💪, 🏋️ 이모지를 사용하라.`;
             const userQueryWithContext = context + "\n### 사용자의 질문\n" + userQuery;
 
-            const payload = {
-                contents: [{ parts: [{ text: userQueryWithContext }] }],
-                systemInstruction: {
-                    parts: [{ text: systemPrompt }]
-                },
-            };
             try {
-                const response = await fetch('/api/gemini', {
+                // FastAPI의 /api/coach 엔드포인트로 변경
+                const response = await fetch('/api/coach', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ payload })
+                    body: JSON.stringify({
+                        system_prompt: systemPrompt,
+                        user_prompt: userQueryWithContext
+                    })
                 });
 
                 if (!response.ok) {
                     const errorBody = await response.text();
-                    console.error("API Error Response:", errorBody);
                     throw new Error(`API 요청 실패: ${response.status}`);
                 }
 
                 const result = await response.json();
-                const candidate = result.candidates?.[0];
-
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    return candidate.content.parts[0].text;
+                if (result.advice) {
+                    return result.advice;
                 } else {
                     return "AI가 답변을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.";
                 }

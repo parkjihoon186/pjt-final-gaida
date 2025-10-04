@@ -61,176 +61,330 @@ quadrantChart
 
 ## 🏛️ 아키텍처 (Architecture)
 
-본 프로젝트는 **이중 백엔드(Dual Backend)** 구조를 채택하여 웹 서비스와 AI 에이전트 기능을 분리하고 확장성을 확보했습니다.
+본 프로젝트는 **단일 FastAPI 백엔드** 구조를 채택하여 웹 서비스와 AI 에이전트 기능을 통합 제공합니다. 이를 통해 프로젝트 구조를 단순화하고, 배포 및 유지보수 효율성을 극대화했습니다.
 
--   **Express.js (Node.js) 백엔드**: 프론트엔드의 메인 API 서버 역할을 합니다. AI 코칭, 전략 브리핑, 데이터베이스 프록시 기능을 수행합니다.
--   **FastAPI (Python) 백엔드**: LangGraph 기반의 ReAct 에이전트를 API로 제공합니다. 복잡한 Tool-Calling 로직을 처리하여 사용자의 자연어 요청(예: "내 운동 기록 보여줘")을 수행합니다.
+* **FastAPI (Python) 백엔드**
+  * 정적 파일(index.html, CSS, JS 등) 서빙
+  * Supabase 연동 RESTful API 엔드포인트 제공 (`/api/sessions`, `/api/nutrition` 등) 
+  * AI 코칭 엔드포인트:
+    * `/api/coach`: 직접 GPT 호출 방식 (사전 데이터 조회 후 단일 응답)
+    * `/api/agent/invoke`: LangGraph 기반 에이전트 (도구 호출 및 반복적 추론)
 
-```mermaid
-flowchart LR
- subgraph subGraph0["User Layer"]
-        U@{ label: "👤 User's Browser" }
-  end
- subgraph subGraph1["UI Libraries"]
-        T["Tailwind CSS"]
-        C["Chart.js"]
-  end
- subgraph subGraph2["Frontend Layer (Client-Side)"]
-    direction TB
-        FE["index.html"]
-        PH["Placeholder Data Display"]
-        CUI["Chatting UI"]
-        subGraph1
-  end
- subgraph subGraph3["Web API Server (server.js)"]
-        B1["Express.js"]
-        B1_Coach["/api/coach<br>(AI Coach & Strategy Briefing)"]
-        B1_CRUD["/api/sessions, /api/nutrition<br>(DB Proxy for Data Retrieval)"]
-  end
- subgraph subGraph4["LangGraph Engine (node.py, state.py)"]
-        AD["AgentDecision Node"]
-        TE["ToolExecutor Node"]
-        RP["ResultProcessor Node"]
-  end
- subgraph subGraph5["LangChain Framework Layer"]
-        AE["AgentExecutor<br>(Abstraction Layer)"]
-        AE_Features["• Prompt Management<br>• Tool Context Integration<br>• Conversation History<br>• LangChain Rules"]
-  end
- subgraph subGraph6["LangGraph Agent Server (graph_builder.py)"]
-        B2["FastAPI"]
-        B2_Invoke["/invoke<br>(Agent Execution)"]
-        subGraph4
-        subGraph5
-        ST["supabase_tools.py<br>(DB Tool Functions)"]
-  end
- subgraph subGraph7["Backend Services Layer"]
-    direction TB
-        subGraph3
-        subGraph6
-  end
- subgraph subGraph8["External Services & Data Layer"]
-    direction TB
-        GPT["🧠 OpenAI GPT Model"]
-        DB[("🗃️ Supabase DB")]
-  end
-    FE --> PH & CUI
-    B1 --> B1_Coach & B1_CRUD
-    AD --> TE
-    TE --> RP & ST
-    AE -.-> AE_Features
-    B2 --> B2_Invoke
-    B2_Invoke --> AD
-    RP -- "agent_executor.agent.invoke()" --> AE
-    U --> FE
-    PH -- Direct Data Retrieval --> B1_CRUD
-    B1_CRUD -- Proxy Request --> DB
-    CUI -- Natural Language Input --> B2_Invoke
-    ST -- Tool Execution<br>(get_workout_history, add_workout_session) --> DB
-    B1_Coach -- "SystemPrompt + UserPrompt<br>+ Pre-retrieved Data" --> GPT
-    AD -- Decision Making --> GPT
-    AE -- Managed LLM Call<br>(with context & history) --> GPT
-    U@{ shape: rect}
-     U:::layer
-     FE:::layer
-     PH:::layer
-     CUI:::layer
-     B1:::layer
-     B1_Coach:::service
-     B1_CRUD:::service
-     AD:::layer
-     TE:::layer
-     RP:::layer
-     AE:::framework
-     AE_Features:::framework
-     B2:::layer
-     B2_Invoke:::service
-     ST:::layer
-     GPT:::external
-     DB:::external
-    classDef layer fill:#f2f0ff,stroke:#b695e5,stroke-width:2px
-    classDef service fill:#e6f7ff,stroke:#007bff,stroke-width:1px
-    classDef external fill:#d4edda,stroke:#155724,stroke-width:1px
-    classDef framework fill:#fff9e6,stroke:#ffa500,stroke-width:2px
-    classDef dataflow fill:#fff2e6,stroke:#ff8c00,stroke-width:2px
-    style T fill:#38bdf8,stroke:#fff,color:#fff
-    style C fill:#ff6384,stroke:#fff,color:#fff
-```
+* **Supabase (DB + 인증/보안 레이어)**
+  * 모든 데이터는 `jsonb` 형태로 유연하게 저장
+  * Row Level Security(RLS) 정책을 통해 사용자별 데이터 접근 제어
+
+
 
 ### data-flow
 
+#### total-data-flow
 ```mermaid
-
 graph LR
-    subgraph "Input Data Types"
-        NLQ["Natural Language Query<br/>question: str"]
-        DIR["Direct Data Request<br/>user_id: text"]
+    subgraph Input["Input Layer"]
+        direction TB
+        NLQ["Natural Language Query<br/>question: str<br/>예: '지난주 운동량 분석해줘'"]
+        DIR["Direct Data Request<br/>user_id: text<br/>예: 'user123'"]
     end
     
-    subgraph "Frontend Data Layer"
-        REQ_Direct["Direct Request<br/>{ user_id: text }"]
-        REQ_Agent["Agent Request<br/>{ question: str, user_id: text }"]
+    subgraph Frontend["Frontend Layer"]
+        direction TB
+        REQ_Agent["Agent Request<br/>POST /api/agent/invoke"]
+        REQ_Direct["Direct Request<br/>POST /api/coach"]
     end
     
-    subgraph "Backend Data Processing"
-        subgraph "Web API Flow"
-            WEB["Web API Processing<br/>SystemPrompt + UserPrompt + DB_Data"]
+    subgraph Backend["Backend Layer (FastAPI Unified Server)"]
+        direction TB
+        FASTAPI["FastAPI Server<br/>단일 진입점"]
+        
+        subgraph DirectPath["Direct Flow Path (Simple)"]
+            ROUTER_Direct["Coach Router"]
+            PROCESS_Direct["Direct Processing<br/>• Fetch DB data<br/>• Build prompt<br/>• Single GPT call"]
         end
         
-        subgraph "LangGraph State Flow"
-            STATE["State (TypedDict)<br/>• question: str<br/>• decision: AgentDecisionModel<br/>• tool_outputs: List[ToolMessage]<br/>• answer: str"]
+        subgraph AgentPath["Agent Flow Path (Complex)"]
+            ROUTER_Agent["Agent Router"]
             
-            DECISION["AgentDecisionModel<br/>• action_type: Literal<br/>• tool_calls: List[dict]<br/>• final_answer: str"]
-            
-            TOOLS["Tool Parameters<br/>• user_id: text<br/>• date_filter?: str"]
+            subgraph LangGraph["LangGraph Engine"]
+                direction TB
+                STATE["State<br/>Management"]
+                DECISION["Agent<br/>Decision<br/>(GPT 1차)"]
+                EXECUTOR["Tool<br/>Executor"]
+                PROCESSOR["Result<br/>Processor<br/>(GPT 최종)"]
+            end
         end
-    end
-    
-    subgraph "Database Schema"
-        SESSIONS["sessions<br/>• id: bigint<br/>• user_id: text<br/>• total_volume: numeric<br/>• exercises: jsonb"]
         
-        NUTRITION["nutrition<br/>• id: bigint<br/>• user_id: text<br/>• carbs: numeric<br/>• protein: numeric<br/>• fat: numeric"]
+        TOOLS["Supabase Tools<br/>• get_workout_history()<br/>• get_nutrition_data()<br/>• add_workout_session()"]
     end
     
-    subgraph "AI Processing"
-        GPT["GPT Model<br/>Input: structured prompts<br/>Output: text responses"]
+    subgraph Database["Database Layer (Supabase)"]
+        direction TB
+        SESSIONS["sessions table"]
+        NUTRITION["nutrition table"]
     end
     
-    %% Styling
-    classDef input fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    classDef frontend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef backend fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    classDef database fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef ai fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    subgraph AI["AI Layer"]
+        direction TB
+        GPT["OpenAI GPT Model"]
+    end
     
-    %% Data Flow Connections
+    subgraph Output["Output Layer"]
+        direction TB
+        RESPONSE_Direct["Direct Response<br/>{ advice: string }"]
+        RESPONSE_Agent["Agent Response<br/>{ answer: string, tool_outputs: array }"]
+    end
     
-    %% Direct Flow
-    DIR --> REQ_Direct
-    REQ_Direct --> WEB
-    WEB --> SESSIONS
-    WEB --> NUTRITION
-    WEB --> GPT
-    
-    %% Agent Flow
+    %% Input to Frontend
     NLQ --> REQ_Agent
-    REQ_Agent --> STATE
+    DIR --> REQ_Direct
+    
+    %% Frontend to Backend
+    REQ_Agent --> FASTAPI
+    REQ_Direct --> FASTAPI
+    
+    %% FastAPI Routing
+    FASTAPI --> ROUTER_Agent
+    FASTAPI --> ROUTER_Direct
+    
+    %% Direct Flow (Blue Path)
+    ROUTER_Direct --> PROCESS_Direct
+    PROCESS_Direct --> SESSIONS
+    PROCESS_Direct --> NUTRITION
+    SESSIONS -.->|데이터 반환| PROCESS_Direct
+    NUTRITION -.->|데이터 반환| PROCESS_Direct
+    PROCESS_Direct --> GPT
+    GPT -.->|조언 생성| PROCESS_Direct
+    PROCESS_Direct --> RESPONSE_Direct
+    
+    %% Agent Flow (Green Path)
+    ROUTER_Agent --> STATE
     STATE --> DECISION
-    DECISION --> TOOLS
+    DECISION --> EXECUTOR
+    EXECUTOR --> TOOLS
+    EXECUTOR --> PROCESSOR
     TOOLS --> SESSIONS
     TOOLS --> NUTRITION
-    SESSIONS --> STATE
-    NUTRITION --> STATE
-    STATE --> GPT
+    SESSIONS -.->|데이터 반환| EXECUTOR
+    NUTRITION -.->|데이터 반환| EXECUTOR
+    PROCESSOR -.->|추가 분석| STATE
+    DECISION <--> GPT
+    PROCESSOR <--> GPT
+    PROCESSOR --> RESPONSE_Agent
     
-    %% Apply Classes
+    %% Output
+    FASTAPI --> RESPONSE_Direct
+    FASTAPI --> RESPONSE_Agent
+    
+    %% Styling
+    classDef input fill:#fff9c4,stroke:#f57f17,stroke-width:3px,color:#000
+    classDef frontend fill:#ffe082,stroke:#f57f17,stroke-width:2px,color:#000
+    classDef fastapi fill:#9c27b0,stroke:#4a148c,stroke-width:3px,color:#fff
+    classDef directFlow fill:#42a5f5,stroke:#0d47a1,stroke-width:2px,color:#000
+    classDef agentFlow fill:#66bb6a,stroke:#1b5e20,stroke-width:2px,color:#000
+    classDef langgraph fill:#4caf50,stroke:#1b5e20,stroke-width:2px,color:#fff
+    classDef tools fill:#81c784,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef database fill:#ff9800,stroke:#e65100,stroke-width:2px,color:#000
+    classDef ai fill:#e91e63,stroke:#880e4f,stroke-width:2px,color:#fff
+    classDef output fill:#607d8b,stroke:#263238,stroke-width:3px,color:#fff
+    
     class NLQ,DIR input
-    class REQ_Direct,REQ_Agent frontend
-    class WEB,STATE,DECISION,TOOLS backend
+    class REQ_Agent,REQ_Direct frontend
+    class FASTAPI fastapi
+    class ROUTER_Direct,PROCESS_Direct directFlow
+    class ROUTER_Agent agentFlow
+    class STATE,DECISION,EXECUTOR,PROCESSOR langgraph
+    class TOOLS tools
     class SESSIONS,NUTRITION database
     class GPT ai
-
+    class RESPONSE_Direct,RESPONSE_Agent output
 ```
+#### Direct-Flow
+- 처리 단계: Frontend → FastAPI → Router → Direct Processing
+```mermaid
+graph LR
+    subgraph Input["Input Layer"]
+        direction TB
+        DIR["Direct Data Request<br/>user_id: text<br/>예: 'user123'"]
+    end
+    
+    subgraph Frontend["Frontend Layer"]
+        direction TB
+        REQ_Direct["Direct Request<br/>fetch('/api/coach', {<br/>  user_id: text<br/>})"]
+    end
+    
+    subgraph Backend["Backend Layer (FastAPI Unified Server)"]
+        direction TB
+        FASTAPI["FastAPI Server<br/>• Static File Serving<br/>• API Routing<br/>• Direct DB Access"]
+        
+        ROUTER["Coach Router<br/>POST /api/coach<br/>→ get_coaching_advice()"]
+        
+        WEB["Direct Processing<br/>1. Receive user_id<br/>2. Fetch data from Supabase<br/>3. Build SystemPrompt + UserPrompt<br/>4. Call GPT with pre-fetched data<br/>5. Return coaching advice"]
+    end
+    
+    subgraph Database["Database Layer"]
+        direction TB
+        SESSIONS["sessions table<br/>• id: bigint (PK)<br/>• user_id: text<br/>• session_date: date<br/>• total_volume: numeric<br/>• exercises: jsonb"]
+        
+        NUTRITION["nutrition table<br/>• id: bigint (PK)<br/>• user_id: text<br/>• meal_date: date<br/>• carbs: numeric<br/>• protein: numeric<br/>• fat: numeric"]
+    end
+    
+    subgraph AI["AI Layer"]
+        direction TB
+        GPT["OpenAI GPT Model<br/>단일 호출<br/>Input: SystemPrompt + UserPrompt + DB Data<br/>Output: Coaching advice text"]
+    end
+    
+    subgraph Output["Output Layer"]
+        direction TB
+        RESPONSE["HTTP Response<br/>{<br/>  advice: string,<br/>  status: 'success'<br/>}"]
+    end
+    
+    %% Direct Flow Path
+    DIR --> REQ_Direct
+    REQ_Direct --> FASTAPI
+    FASTAPI --> ROUTER
+    ROUTER --> WEB
+    
+    %% Database Access
+    WEB --> SESSIONS
+    WEB --> NUTRITION
+    SESSIONS -.->|데이터 반환| WEB
+    NUTRITION -.->|데이터 반환| WEB
+    
+    %% AI Processing
+    WEB --> GPT
+    GPT -.->|조언 생성| WEB
+    
+    %% Output Flow
+    WEB --> RESPONSE
+    FASTAPI --> RESPONSE
+    
+    %% Styling
+    classDef input fill:#90caf9,stroke:#0d47a1,stroke-width:3px,color:#000
+    classDef frontend fill:#64b5f6,stroke:#0d47a1,stroke-width:2px,color:#000
+    classDef backend fill:#42a5f5,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef database fill:#2196f3,stroke:#0d47a1,stroke-width:2px,color:#fff
+    classDef ai fill:#1976d2,stroke:#0d47a1,stroke-width:2px,color:#fff
+    classDef output fill:#0d47a1,stroke:#000,stroke-width:3px,color:#fff
+    
+    class DIR input
+    class REQ_Direct frontend
+    class FASTAPI,ROUTER,WEB backend
+    class SESSIONS,NUTRITION database
+    class GPT ai
+    class RESPONSE output
+```
+#### Agent-Flow
+## Agent Flow (LangGraph 기반 AI 에이전트)
 
+### 처리 단계
+- **Input → Frontend → FastAPI Router → LangGraph State Management → Agent Decision → Tool Execution → Database**
+- State ↔ Decision ↔ GPT 간 피드백 루프를 통한 반복적 추론
+- 다중 GPT 호출 가능:
+  - 1차 호출: AgentDecision에서 초기 의사결정 (tool_use 여부 판단)
+  - 2차+ 호출: Tool 실행 결과를 바탕으로 추가 분석 필요 시
+  - 최종 호출: ResultProcessor에서 모든 정보를 종합하여 최종 답변 생성
+
+### 아키텍처 특징
+- **FastAPI 서버**: FastAPI가 모든 요청 처리
+- **직접 연결**: 프론트엔드에서 `/api/agent/invoke` 엔드포인트로 직접 LangGraph 호출
+- **상태 관리**: TypedDict 기반 State로 대화 컨텍스트 유지
+- **도구 기반 추론**: Supabase Tools를 활용한 데이터 기반 의사결정
+```mermaid
+graph LR
+    subgraph Input["Input Layer"]
+        direction TB
+        NLQ["Natural Language Query<br/>question: str<br/>예: '지난주 운동량 분석해줘'"]
+    end
+    
+    subgraph Frontend["Frontend Layer"]
+        direction TB
+        REQ_Agent["Agent Request<br/>fetch('/api/agent/invoke', {<br/>  question: str,<br/>  user_id: text<br/>})"]
+    end
+    
+    subgraph Backend["Backend Layer (FastAPI Unified Server)"]
+        direction TB
+        FASTAPI["FastAPI Server<br/>• Static File Serving<br/>• API Routing<br/>• LangGraph Integration"]
+        
+        ROUTER["Agent Router<br/>POST /api/agent/invoke<br/>→ graph.invoke()"]
+        
+        subgraph LangGraph["LangGraph Engine"]
+            direction TB
+            STATE["State Management<br/>(TypedDict)<br/>• question: str<br/>• user_id: text<br/>• decision: AgentDecisionModel<br/>• tool_outputs: List[ToolMessage]<br/>• answer: str"]
+            
+            DECISION["AgentDecision Node<br/>(Pydantic Model)<br/>• action_type: 'tool_use' | 'final_answer'<br/>• tool_calls: List[dict]<br/>• final_answer: str<br/><br/>GPT 1차 호출: 의사결정"]
+            
+            EXECUTOR["ToolExecutor Node<br/>1. Parse tool_calls<br/>2. Execute supabase_tools<br/>3. Collect ToolMessages"]
+            
+            PROCESSOR["ResultProcessor Node<br/>1. Update state with results<br/>2. Determine next action<br/>3. Generate final answer<br/><br/>GPT 최종 호출: 답변 생성"]
+        end
+        
+        TOOLS["Supabase Tools<br/>Functions:<br/>• get_workout_history()<br/>• get_nutrition_data()<br/>• add_workout_session()<br/>Parameters:<br/>• user_id: text<br/>• date_filter: str (optional)<br/>• limit: int (optional)"]
+    end
+    
+    subgraph Database["Database Layer"]
+        direction TB
+        SESSIONS["sessions table<br/>• id: bigint (PK)<br/>• user_id: text<br/>• session_date: date<br/>• total_volume: numeric<br/>• exercises: jsonb"]
+        
+        NUTRITION["nutrition table<br/>• id: bigint (PK)<br/>• user_id: text<br/>• meal_date: date<br/>• carbs: numeric<br/>• protein: numeric<br/>• fat: numeric"]
+    end
+    
+    subgraph AI["AI Layer"]
+        direction TB
+        GPT["OpenAI GPT Model<br/>1차: Decision making<br/>2차+: Tool-based reasoning<br/>최종: Answer generation"]
+    end
+    
+    subgraph Output["Output Layer"]
+        direction TB
+        RESPONSE["HTTP Response<br/>{<br/>  answer: string,<br/>  tool_outputs: array,<br/>  state: object<br/>}"]
+    end
+    
+    %% Main Flow Path
+    NLQ --> REQ_Agent
+    REQ_Agent --> FASTAPI
+    FASTAPI --> ROUTER
+    ROUTER --> STATE
+    
+    %% LangGraph Internal Flow
+    STATE --> DECISION
+    DECISION --> EXECUTOR
+    EXECUTOR --> TOOLS
+    EXECUTOR --> PROCESSOR
+    
+    %% Database Connections
+    TOOLS --> SESSIONS
+    TOOLS --> NUTRITION
+    SESSIONS -.->|데이터 반환| EXECUTOR
+    NUTRITION -.->|데이터 반환| EXECUTOR
+    
+    %% Feedback Loops
+    PROCESSOR -.->|추가 분석 필요시| STATE
+    DECISION -.->|직접 답변 가능시| PROCESSOR
+    
+    %% AI Integration
+    DECISION <--> GPT
+    PROCESSOR <--> GPT
+    
+    %% Output Flow
+    PROCESSOR --> RESPONSE
+    FASTAPI --> RESPONSE
+    
+    %% Styling
+    classDef input fill:#a5d6a7,stroke:#1b5e20,stroke-width:3px,color:#000
+    classDef frontend fill:#81c784,stroke:#1b5e20,stroke-width:2px,color:#000
+    classDef backend fill:#66bb6a,stroke:#2e7d32,stroke-width:2px,color:#000
+    classDef langgraph fill:#4caf50,stroke:#1b5e20,stroke-width:2px,color:#fff
+    classDef database fill:#43a047,stroke:#1b5e20,stroke-width:2px,color:#fff
+    classDef ai fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
+    classDef output fill:#1b5e20,stroke:#000,stroke-width:3px,color:#fff
+    
+    class NLQ input
+    class REQ_Agent frontend
+    class FASTAPI,ROUTER,TOOLS backend
+    class STATE,DECISION,EXECUTOR,PROCESSOR langgraph
+    class SESSIONS,NUTRITION database
+    class GPT ai
+    class RESPONSE output
+```
 ## 🛠️ 기술 스택 (Tech Stack)
 
 ### 프론트엔드
@@ -239,12 +393,8 @@ graph LR
 * **Chart.js**: 사용자의 기록 데이터를 기반으로 그래프 및 차트 시각화.
 
 ### 백엔드
-
-1. **Express.js (Node.js)**
-   * **역할**: 웹 애플리케이션의 메인 API 서버.
-   * **주요 기능**: AI 코치 기능(GPT 호출), 데이터 요청 처리 및 Supabase 프록시.
-2. **FastAPI (Python)**
-   * **역할**: LangGraph 기반 ReAct 에이전트 API 서버.
+**FastAPI (Python)**
+   * **역할**: 웹 애플리케이션의 API 서버, LangGraph 기반 ReAct 에이전트 API 서버.
    * **주요 기능**: 자연어 질의 처리, Tool-Calling, 데이터베이스 상호작용.
 
 ### 데이터베이스
@@ -313,18 +463,6 @@ pip install -r requirements.txt
 uvicorn graph_builder:fastapi_app --reload
 ```
 
-#### B. 웹 애플리케이션 서버 (Express.js)
-
-```bash
-# web 디렉토리로 이동
-cd web
-
-# 종속성 설치
-npm install
-
-# 서버 실행
-node server.js
-```
 
 ---
 
@@ -337,7 +475,7 @@ http://localhost:3000
 ```
 
 
-### Directory structure
+### Directory structure (Before version)
 ```
 web
 .

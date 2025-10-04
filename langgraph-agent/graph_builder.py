@@ -1,6 +1,7 @@
 # graph_builder.py
 
 import os
+from dotenv import load_dotenv
 import sys
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, AIMessage
@@ -18,8 +19,15 @@ from node import (
 ) 
 
 # FastAPI 및 관련 라이브러리 임포트
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from api_router import router as db_proxy_router # 새로 만든 라우터 임포트
+
+# .env 파일에서 환경 변수 로드
+load_dotenv()
 
 
 # ----------------------------------------------------
@@ -126,8 +134,24 @@ class AgentRequest(BaseModel):
     question: str
 
 # FastAPI 앱 인스턴스 생성. 이 변수가 웹 서버의 진입점이 됩니다.
-fastapi_app = FastAPI(title="LangGraph Agent API")
+fastapi_app = FastAPI(title="VS-ME Unified Backend API")
 
+# CORS 미들웨어 추가
+fastapi_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # 프론트엔드 주소
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 HTTP 헤더 허용
+)
+
+# LangGraph 에이전트 라우터 생성
+agent_router = APIRouter()
+
+# DB 프록시 라우터 추가
+fastapi_app.include_router(db_proxy_router)
+
+# LangGraph 에이전트 API 엔드포인트
 @fastapi_app.post("/invoke")
 async def invoke_agent_api(request: AgentRequest):
     """
@@ -150,6 +174,18 @@ async def invoke_agent_api(request: AgentRequest):
     
     return {"result": final_message_content}
 
+# 루트 경로(/) 요청 시 index.html 반환
+@fastapi_app.get("/")
+async def read_index():
+    # web 디렉토리의 index.html을 반환합니다.
+    return FileResponse('../web/index.html')
+
+# 정적 파일 서빙 (CSS, JS, 이미지 등)
+# ../web 경로를 / 경로에 마운트합니다.
+fastapi_app.mount("/", StaticFiles(directory="../web"), name="static")
+
+# 에이전트 라우터를 메인 앱에 포함 (prefix를 사용할 경우)
+# fastapi_app.include_router(agent_router, prefix="/agent")
 
 
 # ----------------------------------------------------
