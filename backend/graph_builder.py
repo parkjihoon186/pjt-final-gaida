@@ -177,12 +177,12 @@ async def invoke_agent_api(request: AgentRequest):
 # 루트 경로(/) 요청 시 index.html 반환
 @fastapi_app.get("/")
 async def read_index():
-    # web 디렉토리의 index.html을 반환합니다.
-    return FileResponse('../web/index.html')
+    # frontend 디렉토리의 index.html을 반환합니다.
+    return FileResponse('./frontend/index.html')
 
 # 정적 파일 서빙 (CSS, JS, 이미지 등)
-# ../web 경로를 / 경로에 마운트합니다.
-fastapi_app.mount("/", StaticFiles(directory="../web"), name="static")
+# ./frontend 경로를 / 경로에 마운트합니다.
+fastapi_app.mount("/", StaticFiles(directory="./frontend"), name="static")
 
 # 에이전트 라우터를 메인 앱에 포함 (prefix를 사용할 경우)
 # fastapi_app.include_router(agent_router, prefix="/agent")
