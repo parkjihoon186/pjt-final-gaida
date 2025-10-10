@@ -202,14 +202,19 @@ async def invoke_agent_api(request: AgentRequest):
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
-# API 라우트가 먼저 확인되므로, 나머지 모든 경로('/')를 정적 파일 제공으로 마운트합니다.
-# 이렇게 하면 index.html에서 '/style.css'와 같이 직관적인 경로를 사용할 수 있습니다.
-fastapi_app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
-
-# 루트 경로(/) 요청 시 index.html을 찾지 못하는 경우를 대비한 폴백
+# SPA(Single Page Application) 지원을 위한 정적 파일 및 클라이언트 라우팅 처리
 @fastapi_app.get("/{full_path:path}", include_in_schema=False)
-async def catch_all(request: Request, full_path: str):
-    return FileResponse(os.path.join(FRONTEND_DIR, 'index.html'))
+async def serve_spa(request: Request, full_path: str):
+    # 요청된 경로에 해당하는 파일 경로를 구성합니다.
+    # full_path가 비어있으면(루트 경로) index.html을 요청한 것으로 간주합니다.
+    path = full_path if full_path else "index.html"
+    file_path = os.path.join(FRONTEND_DIR, path)
+
+    # 파일이 존재하면 해당 파일을 반환하고, 그렇지 않으면 index.html로 폴백합니다.
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    else:
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 # ----------------------------------------------------
 # 4. Local Test (기존 코드 유지)
