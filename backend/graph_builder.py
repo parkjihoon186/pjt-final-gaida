@@ -19,11 +19,12 @@ from node import (
 ) 
 
 # FastAPI 및 관련 라이브러리 임포트
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from api_router import router as db_proxy_router # 새로 만든 라우터 임포트
 
 # .env 파일에서 환경 변수 로드
@@ -142,11 +143,15 @@ class AgentRequest(BaseModel):
 # FastAPI 앱 인스턴스 생성. 이 변수가 웹 서버의 진입점이 됩니다.
 fastapi_app = FastAPI(title="VS-ME Unified Backend API")
 
+# --- 보안 강화: CORS 설정 ---
+# 환경 변수에서 허용할 Origin 목록을 가져옵니다.
+# .env 파일에 `ALLOWED_ORIGINS="http://localhost:3000,https://your.production.site"` 와 같이 설정합니다.
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
 # CORS 미들웨어 추가
 fastapi_app.add_middleware(
     CORSMiddleware,
-    # 개발 편의를 위해 모든 origin을 허용. 배포 시에는 특정 도메인으로 제한해야 합니다.
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],  # 모든 HTTP 메소드 허용
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
@@ -175,8 +180,6 @@ async def invoke_agent_api(request: AgentRequest):
 
     # LangGraph의 입력 형식에 맞게 데이터를 준비합니다.
     input_data = {
-        # question 필드는 마지막 사용자 메시지로 채워주거나, 비워두어도 무방합니다.
-        "question": request.messages[-1].content if request.messages else "",
         "messages": langchain_messages,
         "loop_counter": 0,
         "tool_outputs": [],
@@ -191,18 +194,22 @@ async def invoke_agent_api(request: AgentRequest):
     
     return {"result": final_message_content}
 
-# 루트 경로(/) 요청 시 index.html 반환 (StaticFiles 마운트 전에 정의)
-@fastapi_app.get("/", include_in_schema=False)
-async def read_index():
-    return FileResponse('./frontend/index.html')
-
-# 정적 파일 서빙 (CSS, JS, 이미지 등)
-# ./frontend 경로를 / 경로에 마운트합니다.
-fastapi_app.mount("/static", StaticFiles(directory="./frontend"), name="static")
-
 # 에이전트 라우터를 메인 앱에 포함 (prefix를 사용할 경우)
 # fastapi_app.include_router(agent_router, prefix="/agent")
 
+# --- 정적 파일 서빙 (API 라우트 정의 이후에 배치) ---
+# 실행 위치에 관계없이 안정적인 경로를 제공하기 위해 절대 경로를 사용합니다.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
+# API 라우트가 먼저 확인되므로, 나머지 모든 경로('/')를 정적 파일 제공으로 마운트합니다.
+# 이렇게 하면 index.html에서 '/style.css'와 같이 직관적인 경로를 사용할 수 있습니다.
+fastapi_app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
+
+# 루트 경로(/) 요청 시 index.html을 찾지 못하는 경우를 대비한 폴백
+@fastapi_app.get("/{full_path:path}", include_in_schema=False)
+async def catch_all(request: Request, full_path: str):
+    return FileResponse(os.path.join(FRONTEND_DIR, 'index.html'))
 
 # ----------------------------------------------------
 # 4. Local Test (기존 코드 유지)
