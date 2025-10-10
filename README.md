@@ -309,13 +309,13 @@ graph LR
         
         subgraph LangGraph["LangGraph Engine"]
             direction TB
-            STATE["State Management<br/>(TypedDict)<br/>• question: str<br/>• user_id: text<br/>• decision: AgentDecisionModel<br/>• tool_outputs: List[ToolMessage]<br/>• answer: str"]
+            STATE["State Management<br/>(TypedDict)<br/>• messages: List[BaseMessage]<br/>• user_id: text<br/>• decision: AgentDecisionModel<br/>• tool_outputs: List[ToolMessage]"]
             
             DECISION["AgentDecision Node<br/>(Pydantic Model)<br/>• action_type: 'tool_use' | 'final_answer'<br/>• tool_calls: List[dict]<br/>• final_answer: str<br/><br/>GPT 1차 호출: 의사결정"]
             
             EXECUTOR["ToolExecutor Node<br/>1. Parse tool_calls<br/>2. Execute supabase_tools<br/>3. Collect ToolMessages"]
             
-            PROCESSOR["ResultProcessor Node<br/>1. Update state with results<br/>2. Determine next action<br/>3. Generate final answer<br/><br/>GPT 최종 호출: 답변 생성"]
+            PROCESSOR["ResultProcessor Node<br/>1. Update state with results<br/>2. Determine next action<br/>3. Append final answer to messages<br/><br/>GPT 최종 호출: 답변 생성"]
         end
         
         TOOLS["Supabase Tools<br/>Functions:<br/>• get_workout_history()<br/>• get_nutrition_data()<br/>• add_workout_session()<br/>Parameters:<br/>• user_id: text<br/>• date_filter: str (optional)<br/>• limit: int (optional)"]
@@ -466,7 +466,7 @@ psql "postgresql://<user>:<password>@<host>:<port>/<database>" -f tablecreate.sq
 
 4.  **통합 서버를 실행합니다.**
     ```bash
-    uvicorn graph_builder:fastapi_app --reload
+    uvicorn graph_builder:fastapi_app --reload --port 3000
     ```
 
 

@@ -907,24 +907,11 @@
             // LLM-API에 전달할 프롬프트 구성
             const systemPrompt = `당신은 전문 코치입니다. 제공된 사용자 데이터와 리포트는 다음 항목을 포함해야 합니다:
 1.  **총평**: 현재 섭취량과 권장 섭취량을 비교하여 긍정적이고 격려하는 톤으로 전반적인 평가를 내립니다.
-2.  **구체적인 조언**: 분석 결과를 바탕으로, 사용자가 다음 식사나 다음 날 식단에서 개선할 수 있는 구체적인 행동 지침을 2-3가지 제안합니다. (예: "단백질이 부족하니 다음 식사에 닭가슴살 100g을 추가해보세요.")
+2.  **구체적인 조언**: 분석 결과를 바탕으로, 사용자가  개선할 수 있는 구체적인 행동 지침을 2-3가지 제안합니다. 
 3.  **형식**: 마크다운을 사용하여 제목, 목록 등을 보기 좋게 구성해주세요.
 4.  **강조 표시**: 섭취량이 권장량에 비해 '부족'한 경우, 해당 수치나 설명을 \`@@RED@@부족한 부분@@/RED@@\`으로 감싸주세요. 섭취량이 적절하거나 초과한 경우에는 이 표시를 사용하지 마세요.`;
             const context = `### 분석 데이터
-- **사용자 프로필**: 나이 ${age}세, 성별 ${gender}, 키 ${height}cm, 체중 ${weight}kg, 활동 수준 ${activityLevel}
-- **계산된 권장 섭취량**:
-  - 총 칼로리(TDEE): 약 ${tdee} kcal
-  - 탄수화물: ${recCarbs} g
-  - 단백질: ${recProtein} g
-  - 지방: ${recFat} g
-- **최근 기록된 섭취량**:
-  - 총 칼로리: 약 ${loggedCalories} kcal
-  - 탄수화물: ${latestNutrition.carbs} g
-  - 단백질: ${latestNutrition.protein} g
-  - 지방: ${latestNutrition.fat} g
-  - BCAA: ${latestNutrition.bcaa} g
-  - 크레아틴: ${latestNutrition.creatine} g
-  - 글루타민: ${latestNutrition.glutamine} g
+
 
 위 데이터를 바탕으로 식단 분석 리포트를 작성해주세요.`;
 
@@ -967,12 +954,16 @@
         // --- 챗봇 로직 ---
         // 채팅 메시지를 UI에 추가하는 함수
         function addChatMessage(message, sender) {
+            if (!message) return; // 메시지가 비어있으면 추가하지 않음
             const messageDiv = document.createElement('div');
             messageDiv.className = `chat-message ${sender}-message`;
             messageDiv.textContent = message;
             ui.chatMessages.appendChild(messageDiv);
             ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; // 항상 최신 메시지가 보이도록 스크롤
         }
+
+        // 대화 기록을 저장하는 배열
+        let chatHistory = [{ type: 'ai', content: '안녕하세요! 당신의 데이터를 기반으로 답변해 드립니다.' }];
 
         // 메시지 전송 처리 함수
         async function handleSendMessage() {
@@ -981,6 +972,9 @@
 
             addChatMessage(userInput, 'user');
             ui.chatInput.value = '';
+            // 대화 기록에 사용자 메시지 추가
+            chatHistory.push({ type: 'human', content: userInput });
+
             ui.chatSendBtn.disabled = true;
 
             // '생각 중' 인디케이터 표시
@@ -991,9 +985,11 @@
             ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
             
             try {
-                // AI 응답 생성 함수 호출 (시뮬레이션)
-                const aiResponse = await getAiNutritionAdvice(userInput);
+                // LangGraph 에이전트 API(/invoke) 호출
+                const aiResponse = await invokeAgent(chatHistory);
                 thinkingDiv.remove(); // '생각 중' 인디케이터 제거
+                // 대화 기록에 AI 응답 추가
+                chatHistory.push({ type: 'ai', content: aiResponse });
                 addChatMessage(aiResponse, 'ai');
             } catch (error) {
                 console.error("AI 응답 오류:", error);
@@ -1004,61 +1000,29 @@
         }
         
         // RAG(검색 증강 생성)를 시뮬레이션하여 AI 영양 조언을 생성하는 함수
-        async function getAiNutritionAdvice(userQuery) {
-            // 1. Retrieve Context (사용자 데이터 검색)
-            const profile = JSON.parse(localStorage.getItem('userProfile')) || {};
-            const recentNutrition = allNutrition.slice(-3); // Get last 3 entries
-            const recentSessions = allSessions.slice(-3);   // Get last 3 entries
-
-            // 2. Construct Prompt (LLM에 전달할 프롬프트 구성)
-            let context = "### 사용자 데이터\n";
-            context += `- 프로필: 나이 ${profile.age || 'N/A'}, 성별 ${profile.gender || 'N/A'}, 키 ${profile.height || 'N/A'}cm, 체중 ${profile.weight || 'N/A'}kg\n`;
-            
-            context += "- 최근 영양 기록 (최대 3개):\n";
-            if(recentNutrition.length > 0) {
-                recentNutrition.forEach(n => {
-                    context += `  - 탄수화물: ${n.carbs}g, 단백질: ${n.protein}g, 지방: ${n.fat}g\n`;
-                });
-            } else {
-                context += "  - 기록 없음\n";
-            }
-
-            context += "- 최근 훈련 기록 (최대 3개):\n";
-             if(recentSessions.length > 0) {
-                recentSessions.forEach(s => {
-                    context += `  - 날짜: ${s.created_at ? new Date(s.created_at).toLocaleDateString() : 'N/A'}, 총 볼륨: ${s.total_volume}kg\n`;
-                });
-            } else {
-                context += "  - 기록 없음\n";
-            }
-            
-            const systemPrompt = `너는 사용자의 기록을 분석하여, 주어진 사용자의 데이터에만 근거하여 분석하여 사용자를 돕고 짧고 간결하게 말하라. 🔥, 💪, 🏋️ 이모지를 사용하라.`;
-            const userQueryWithContext = context + "\n### 사용자의 질문\n" + userQuery;
-
+        async function invokeAgent(messages) {
             try {
-                // FastAPI의 /api/coach 엔드포인트로 변경
-                const response = await fetch('/api/coach', {
+                // LangGraph 에이전트 API('/invoke') 호출
+                const response = await fetch('/invoke', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        system_prompt: systemPrompt,
-                        user_prompt: userQueryWithContext
-                    })
+                    body: JSON.stringify({ messages: messages })
                 });
 
                 if (!response.ok) {
                     const errorBody = await response.text();
-                    throw new Error(`API 요청 실패: ${response.status}`);
+                    throw new Error(`API 요청 실패: ${response.status} - ${errorBody}`);
                 }
 
                 const result = await response.json();
-                if (result.advice) {
-                    return result.advice;
+                // graph_builder.py의 반환 형식에 맞게 'result' 필드 사용
+                if (result.result) {
+                    return result.result;
                 } else {
                     return "AI가 답변을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.";
                 }
             } catch (error) {
-                console.error("Gemini API 호출 중 오류 발생:", error);
+                console.error("LangGraph Agent API 호출 중 오류 발생:", error);
                 return "AI와 통신하는 중 오류가 발생했습니다.";
             }
         }
