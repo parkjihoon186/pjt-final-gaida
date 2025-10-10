@@ -35,7 +35,7 @@ class State(TypedDict):
     """
     
     # 1. 기존 LangChain/LangGraph 기본 필드
-    question: str # 초기 사용자 질문
+    question: Optional[str] # 초기 사용자 질문 (현재는 messages로 대체되어 거의 사용되지 않음)
     dataset: Any # (기존) 데이터 분석용
     code: str # (기존) 코드 실행용
     code_lang: str
