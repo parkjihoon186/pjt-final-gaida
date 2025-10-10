@@ -76,7 +76,7 @@
 
 - [ ] **불필요한 파일 및 종속성 제거**
     - [ ] `frontend/server.js`, `frontend/package.json` 등 Node.js 관련 파일 모두 삭제
-    - [ ] `.env` 파일에서 불필요한 변수 정리
+    - [ ] `.env` 중복 파일 정리
 
 - [ ] **문서 업데이트**
     - [ ] `README.md`의 아키텍처 다이어그램을 단일 FastAPI 서버 구조로 수정

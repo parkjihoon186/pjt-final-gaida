@@ -126,12 +126,18 @@ def visualize_graph(app, filename="langgraph_flow.png"):
 # LangGraph 앱을 전역적으로 한 번만 초기화하여 성능을 최적화합니다.
 langgraph_app = build_agent_graph()
 
+# LangChain의 BaseMessage를 Pydantic에서 사용하기 위한 모델
+class MessageModel(BaseModel):
+    type: str # "human", "ai", "tool" 등
+    content: str
+
 # Pydantic 모델로 요청 바디를 정의
 class AgentRequest(BaseModel):
     """
     API 요청에 사용될 데이터 모델.
+    이제 단일 질문 대신 전체 메시지 기록을 받습니다.
     """
-    question: str
+    messages: list[MessageModel]
 
 # FastAPI 앱 인스턴스 생성. 이 변수가 웹 서버의 진입점이 됩니다.
 fastapi_app = FastAPI(title="VS-ME Unified Backend API")
@@ -139,7 +145,8 @@ fastapi_app = FastAPI(title="VS-ME Unified Backend API")
 # CORS 미들웨어 추가
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 프론트엔드 주소
+    # 개발 편의를 위해 모든 origin을 허용. 배포 시에는 특정 도메인으로 제한해야 합니다.
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],  # 모든 HTTP 메소드 허용
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
@@ -157,10 +164,20 @@ async def invoke_agent_api(request: AgentRequest):
     """
     HTTP 요청을 받아 LangGraph 에이전트를 실행합니다.
     """
+    # Pydantic 모델을 LangChain의 BaseMessage 객체 리스트로 변환
+    langchain_messages = []
+    for msg in request.messages:
+        if msg.type == "human":
+            langchain_messages.append(HumanMessage(content=msg.content))
+        elif msg.type == "ai":
+            langchain_messages.append(AIMessage(content=msg.content))
+        # 필요시 ToolMessage 등 다른 타입도 추가 가능
+
     # LangGraph의 입력 형식에 맞게 데이터를 준비합니다.
     input_data = {
-        "question": request.question,
-        "messages": [HumanMessage(content=request.question)],
+        # question 필드는 마지막 사용자 메시지로 채워주거나, 비워두어도 무방합니다.
+        "question": request.messages[-1].content if request.messages else "",
+        "messages": langchain_messages,
         "loop_counter": 0,
         "tool_outputs": [],
         "intermediate_steps": []
@@ -174,15 +191,14 @@ async def invoke_agent_api(request: AgentRequest):
     
     return {"result": final_message_content}
 
-# 루트 경로(/) 요청 시 index.html 반환
-@fastapi_app.get("/")
+# 루트 경로(/) 요청 시 index.html 반환 (StaticFiles 마운트 전에 정의)
+@fastapi_app.get("/", include_in_schema=False)
 async def read_index():
-    # frontend 디렉토리의 index.html을 반환합니다.
     return FileResponse('./frontend/index.html')
 
 # 정적 파일 서빙 (CSS, JS, 이미지 등)
 # ./frontend 경로를 / 경로에 마운트합니다.
-fastapi_app.mount("/", StaticFiles(directory="./frontend"), name="static")
+fastapi_app.mount("/static", StaticFiles(directory="./frontend"), name="static")
 
 # 에이전트 라우터를 메인 앱에 포함 (prefix를 사용할 경우)
 # fastapi_app.include_router(agent_router, prefix="/agent")
